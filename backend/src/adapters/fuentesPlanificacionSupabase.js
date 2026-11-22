@@ -1,4 +1,4 @@
-import { supabase } from '../db/supabase.js';
+import { supabaseAdmin } from '../db/supabase.js';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -37,7 +37,7 @@ function mapearDisponibilidadSemanalADias(cantidad) {
 }
 
 export async function obtenerEvaluacion({ gimnasioId, atletaId, evaluacionId }) {
-  let query = supabase
+  let query = supabaseAdmin
     .from('evaluaciones')
     .select(
       'id, codigo_ref, gimnasio_id, atleta_id, autor_id, fecha, modalidad, objetivo, disponibilidad_semanal, nivel_observado, estado_nivel, restricciones, creado_en'
@@ -53,7 +53,7 @@ export async function obtenerEvaluacion({ gimnasioId, atletaId, evaluacionId }) 
   if (error) throw error;
   if (!ev) return null;
 
-  const { data: mediciones, error: medError } = await supabase
+  const { data: mediciones, error: medError } = await supabaseAdmin
     .from('mediciones')
     .select('*')
     .eq('evaluacion_id', ev.id);
@@ -100,7 +100,7 @@ export async function obtenerEvaluacion({ gimnasioId, atletaId, evaluacionId }) 
 }
 
 export async function obtenerCatalogo({ gimnasioId, catalogoVersion } = {}) {
-  let queryEj = supabase
+  let queryEj = supabaseAdmin
     .from('ejercicios')
     .select('*')
     .eq('activo', true);
@@ -115,7 +115,7 @@ export async function obtenerCatalogo({ gimnasioId, catalogoVersion } = {}) {
   const versionResuelta =
     catalogoVersion || ejerciciosRows?.[0]?.version_catalogo || 'v1';
 
-  const { data: criteriosRows, error: critError } = await supabase
+  const { data: criteriosRows, error: critError } = await supabaseAdmin
     .from('criterios')
     .select('*')
     .eq('version', versionResuelta)
@@ -172,7 +172,7 @@ export async function obtenerCatalogo({ gimnasioId, catalogoVersion } = {}) {
 }
 
 export async function obtenerHistorialEjecutado({ gimnasioId, atletaId }) {
-  const { data: sesionesRows, error } = await supabase
+  const { data: sesionesRows, error } = await supabaseAdmin
     .from('sesiones')
     .select('id, inicio_utc, estado, dia_id, dias_plan(dia_programado, indice_semanal), series(ejercicio_id)')
     .eq('gimnasio_id', gimnasioId)

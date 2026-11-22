@@ -1,4 +1,5 @@
-import { supabase } from '../db/supabase.js';
+import { supabaseAdmin } from '../db/supabase.js';
+import { ErrorPlanificacion } from './errorPlanificacion.js';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -24,18 +25,85 @@ function normalizarDiaIso(valor) {
   return mapa[clave] ?? 1;
 }
 
-function crearErrorDominio(status, codigo, mensaje, extra = {}) {
-  const err = new Error(mensaje);
-  err.status = status;
-  err.codigo = codigo;
-  Object.assign(err, extra);
-  return err;
+const DATOS_UTILIZADOS_PERMITIDOS = new Set([
+  'objetivo',
+  'nivel',
+  'observacion',
+  'restricciones',
+  'mediciones',
+  'historialEjecutado',
+]);
+
+function parsearDiferencias(raw) {
+  if (!raw) return null;
+  let obj = raw;
+  if (typeof raw === 'string') {
+    try {
+      obj = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+  return {
+    mantenidos: Array.isArray(obj.mantenidos) ? obj.mantenidos : [],
+    movidos: Array.isArray(obj.movidos) ? obj.movidos : [],
+    agregados: Array.isArray(obj.agregados) ? obj.agregados : [],
+    retirados: Array.isArray(obj.retirados) ? obj.retirados : [],
+    explicacion: typeof obj.explicacion === 'string' ? obj.explicacion : '',
+  };
+}
+
+function extraerDatosUtilizados(item, motivoVisible) {
+  if (Array.isArray(item?.datosUtilizados) && item.datosUtilizados.length > 0) {
+    return item.datosUtilizados.filter((d) => DATOS_UTILIZADOS_PERMITIDOS.has(d));
+  }
+  if (typeof motivoVisible === 'string' && motivoVisible.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(motivoVisible);
+      if (Array.isArray(parsed?.datosUtilizados)) {
+        const validos = parsed.datosUtilizados.filter((d) =>
+          DATOS_UTILIZADOS_PERMITIDOS.has(d)
+        );
+        if (validos.length > 0) return validos;
+      }
+    } catch {
+      // ignorar si no es JSON
+    }
+  }
+  return ['objetivo'];
+}
+
+function extraerExplicacion(item, motivoVisible) {
+  if (typeof item?.explicacion === 'string' && item.explicacion.length > 0) {
+    return item.explicacion;
+  }
+  if (typeof motivoVisible === 'string' && motivoVisible.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(motivoVisible);
+      if (typeof parsed?.explicacion === 'string') return parsed.explicacion;
+    } catch {
+      // ignorar si no es JSON
+    }
+  }
+  return motivoVisible ?? '';
+}
+
+function serializarMotivoItem(item) {
+  const explicacion = item?.explicacion ?? '';
+  const datosUtilizados = Array.isArray(item?.datosUtilizados)
+    ? item.datosUtilizados.filter((d) => DATOS_UTILIZADOS_PERMITIDOS.has(d))
+    : [];
+  if (datosUtilizados.length > 0) {
+    return JSON.stringify({ explicacion, datosUtilizados });
+  }
+  return explicacion || null;
 }
 
 async function hidratarPlanDesdeFila(filaVersion) {
   if (!filaVersion) return null;
 
-  const { data: diasRows, error: diasErr } = await supabase
+  const { data: diasRows, error: diasErr } = await supabaseAdmin
     .from('dias_plan')
     .select('id, indice_semanal, dia_programado, etiqueta')
     .eq('version_id', filaVersion.id)
@@ -47,7 +115,7 @@ async function hidratarPlanDesdeFila(filaVersion) {
   let itemsRows = [];
 
   if (diaIds.length > 0) {
-    const { data: itemsData, error: itemsErr } = await supabase
+    const { data: itemsData, error: itemsErr } = await supabaseAdmin
       .from('items_plan')
       .select('*')
       .in('dia_id', diaIds)
@@ -70,11 +138,37 @@ async function hidratarPlanDesdeFila(filaVersion) {
         unidad: it.unidad_objetivo === 'segundos' ? 'segundos' : 'repeticiones',
       },
       descansoSegundos: Number(it.descanso_seg ?? 60),
-      explicacion: it.motivo_visible ?? '',
+      explicacion: extraerExplicacion(null, it.motivo_visible),
       criterioId: it.criterio_id ?? '',
-      datosUtilizados: ['objetivo'],
+      datosUtilizados: extraerDatosUtilizados(null, it.motivo_visible),
     });
     itemsPorDia.set(it.dia_id, lista);
+  }
+
+  let diferencias = parsearDiferencias(filaVersion.diferencias);
+  if (
+    !diferencias &&
+    typeof filaVersion.motivo_cambio === 'string' &&
+    filaVersion.motivo_cambio.startsWith('{')
+  ) {
+    try {
+      const parsed = JSON.parse(filaVersion.motivo_cambio);
+      diferencias = parsearDiferencias(parsed?.diferencias);
+    } catch {
+      // ignorar
+    }
+  }
+
+  let motivo = filaVersion.motivo_cambio ?? null;
+  if (typeof motivo === 'string' && motivo.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(motivo);
+      if (typeof parsed?.motivo === 'string') {
+        motivo = parsed.motivo;
+      }
+    } catch {
+      // conservar texto original
+    }
   }
 
   return {
@@ -94,7 +188,8 @@ async function hidratarPlanDesdeFila(filaVersion) {
     })),
     creadoEn: filaVersion.creado_en,
     ...(filaVersion.proxima_revision ? { proximaRevision: filaVersion.proxima_revision } : {}),
-    ...(filaVersion.motivo_cambio ? { motivo: filaVersion.motivo_cambio } : {}),
+    ...(motivo ? { motivo } : {}),
+    ...(diferencias ? { diferencias } : {}),
     ...(filaVersion.aprobado_por_id
       ? {
           aprobacion: {
@@ -108,7 +203,7 @@ async function hidratarPlanDesdeFila(filaVersion) {
 
 export function crearRepositorioPlanificacionSupabase() {
   async function obtenerPorId({ gimnasioId, versionId }) {
-    let query = supabase
+    let query = supabaseAdmin
       .from('versiones_plan')
       .select('*')
       .eq('gimnasio_id', gimnasioId);
@@ -124,7 +219,7 @@ export function crearRepositorioPlanificacionSupabase() {
   }
 
   async function obtenerVigente({ gimnasioId, atletaId }) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('versiones_plan')
       .select('*')
       .eq('gimnasio_id', gimnasioId)
@@ -141,7 +236,7 @@ export function crearRepositorioPlanificacionSupabase() {
     const versionBaseId = plan.versionBaseId ?? null;
 
     if (versionBaseId) {
-      const { data: baseRow, error: baseErr } = await supabase
+      const { data: baseRow, error: baseErr } = await supabaseAdmin
         .from('versiones_plan')
         .select('id, estado')
         .eq('id', versionBaseId)
@@ -150,15 +245,15 @@ export function crearRepositorioPlanificacionSupabase() {
 
       if (baseErr) throw baseErr;
       if (!baseRow || baseRow.estado !== 'vigente') {
-        throw crearErrorDominio(
-          409,
-          'BASE_NO_VIGENTE',
-          'La versión base de reorganización ya no está vigente'
-        );
+        throw new ErrorPlanificacion({
+          status: 409,
+          codigo: 'BASE_NO_VIGENTE',
+          mensaje: 'La versión base de reorganización ya no está vigente',
+        });
       }
     }
 
-    const { data: insertada, error: insErr } = await supabase
+    const { data: insertada, error: insErr } = await supabaseAdmin
       .from('versiones_plan')
       .insert({
         gimnasio_id: gimnasioId,
@@ -179,7 +274,7 @@ export function crearRepositorioPlanificacionSupabase() {
 
     for (const dia of plan.dias ?? []) {
       const diaSemana = normalizarDiaIso(dia.diaSemana);
-      const { data: diaInsertado, error: diaErr } = await supabase
+      const { data: diaInsertado, error: diaErr } = await supabaseAdmin
         .from('dias_plan')
         .insert({
           version_id: insertada.id,
@@ -202,10 +297,10 @@ export function crearRepositorioPlanificacionSupabase() {
           unidad_objetivo: item.objetivoPorSerie?.unidad ?? 'repeticiones',
           objetivo_por_serie: Number(item.objetivoPorSerie?.cantidad ?? 10),
           descanso_seg: Number(item.descansoSegundos ?? 60),
-          motivo_visible: item.explicacion ?? null,
+          motivo_visible: serializarMotivoItem(item),
         }));
 
-        const { error: itemsErr } = await supabase.from('items_plan').insert(filasItems);
+        const { error: itemsErr } = await supabaseAdmin.from('items_plan').insert(filasItems);
         if (itemsErr) throw itemsErr;
       }
     }
@@ -216,7 +311,11 @@ export function crearRepositorioPlanificacionSupabase() {
   async function guardarRevision({ gimnasioId, versionId, revisionEsperada, cambios = {} }) {
     const actual = await obtenerPorId({ gimnasioId, versionId });
     if (!actual) {
-      throw crearErrorDominio(404, 'NO_ENCONTRADO', 'Plan no encontrado');
+      throw new ErrorPlanificacion({
+        status: 404,
+        codigo: 'NO_ENCONTRADO',
+        mensaje: 'Plan no encontrado',
+      });
     }
 
     const diasPayload = Array.isArray(cambios.dias)
@@ -232,12 +331,12 @@ export function crearRepositorioPlanificacionSupabase() {
             unidad_objetivo: it.objetivoPorSerie?.unidad ?? 'repeticiones',
             objetivo_por_serie: Number(it.objetivoPorSerie?.cantidad ?? 10),
             descanso_seg: Number(it.descansoSegundos ?? 60),
-            motivo_visible: it.explicacion ?? null,
+            motivo_visible: serializarMotivoItem(it),
           })),
         }))
       : null;
 
-    const { error: rpcErr } = await supabase.rpc('guardar_revision_plan', {
+    const { error: rpcErr } = await supabaseAdmin.rpc('guardar_revision_plan', {
       p_plan_id: actual.versionId,
       p_revision_esperada: Number(revisionEsperada),
       p_dias: diasPayload,
@@ -247,21 +346,32 @@ export function crearRepositorioPlanificacionSupabase() {
     if (rpcErr) {
       const msg = String(rpcErr.message ?? '');
       if (msg.includes('CONFLICTO_REVISION_ESPERADA')) {
-        throw crearErrorDominio(409, 'REVISION_CONFLICTIVA', 'Conflicto de revisión', {
+        throw new ErrorPlanificacion({
+          status: 409,
+          codigo: 'REVISION_CONFLICTIVA',
+          mensaje: 'Conflicto de revisión',
           revisionActual: actual.revision,
         });
       }
       if (msg.includes('VERSION_BASE_NO_VIGENTE')) {
-        throw crearErrorDominio(409, 'BASE_NO_VIGENTE', 'La versión base ya no está vigente');
+        throw new ErrorPlanificacion({
+          status: 409,
+          codigo: 'BASE_NO_VIGENTE',
+          mensaje: 'La versión base ya no está vigente',
+        });
       }
       if (msg.includes('PLAN_NO_ENCONTRADO')) {
-        throw crearErrorDominio(404, 'NO_ENCONTRADO', 'Plan no encontrado');
+        throw new ErrorPlanificacion({
+          status: 404,
+          codigo: 'NO_ENCONTRADO',
+          mensaje: 'Plan no encontrado',
+        });
       }
       throw rpcErr;
     }
 
     if (cambios.proximaRevision !== undefined) {
-      const { error: proxErr } = await supabase
+      const { error: proxErr } = await supabaseAdmin
         .from('versiones_plan')
         .update({ proxima_revision: cambios.proximaRevision })
         .eq('id', actual.versionId)
@@ -276,10 +386,14 @@ export function crearRepositorioPlanificacionSupabase() {
   async function aprobar({ gimnasioId, versionId, revisionEsperada, aprobadorId }) {
     const actual = await obtenerPorId({ gimnasioId, versionId });
     if (!actual) {
-      throw crearErrorDominio(404, 'NO_ENCONTRADO', 'Plan no encontrado');
+      throw new ErrorPlanificacion({
+        status: 404,
+        codigo: 'NO_ENCONTRADO',
+        mensaje: 'Plan no encontrado',
+      });
     }
 
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('aprobar_version_plan', {
+    const { data: rpcData, error: rpcErr } = await supabaseAdmin.rpc('aprobar_version_plan', {
       p_plan_id: actual.versionId,
       p_revision_esperada: Number(revisionEsperada),
       p_aprobado_por_id: aprobadorId,
@@ -288,15 +402,26 @@ export function crearRepositorioPlanificacionSupabase() {
     if (rpcErr) {
       const msg = String(rpcErr.message ?? '');
       if (msg.includes('CONFLICTO_REVISION_ESPERADA')) {
-        throw crearErrorDominio(409, 'REVISION_CONFLICTIVA', 'Conflicto de revisión', {
+        throw new ErrorPlanificacion({
+          status: 409,
+          codigo: 'REVISION_CONFLICTIVA',
+          mensaje: 'Conflicto de revisión',
           revisionActual: actual.revision,
         });
       }
       if (msg.includes('VERSION_BASE_NO_VIGENTE')) {
-        throw crearErrorDominio(409, 'BASE_NO_VIGENTE', 'La versión base ya no está vigente');
+        throw new ErrorPlanificacion({
+          status: 409,
+          codigo: 'BASE_NO_VIGENTE',
+          mensaje: 'La versión base ya no está vigente',
+        });
       }
       if (msg.includes('PLAN_NO_ENCONTRADO')) {
-        throw crearErrorDominio(404, 'NO_ENCONTRADO', 'Plan no encontrado');
+        throw new ErrorPlanificacion({
+          status: 404,
+          codigo: 'NO_ENCONTRADO',
+          mensaje: 'Plan no encontrado',
+        });
       }
       throw rpcErr;
     }

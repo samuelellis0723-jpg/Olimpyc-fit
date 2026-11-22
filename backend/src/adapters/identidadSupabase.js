@@ -1,4 +1,4 @@
-import { supabase } from '../db/supabase.js';
+import { supabaseAdmin } from '../db/supabase.js';
 
 export async function resolverActorDesdeToken(accessToken) {
   if (!accessToken) {
@@ -7,7 +7,7 @@ export async function resolverActorDesdeToken(accessToken) {
     throw error;
   }
 
-  const { data: userData, error: authError } = await supabase.auth.getUser(accessToken);
+  const { data: userData, error: authError } = await supabaseAdmin.auth.getUser(accessToken);
   if (authError || !userData?.user?.id) {
     const error = new Error('Sesión o token inválido');
     error.code = 'NO_AUTENTICADO';
@@ -16,7 +16,7 @@ export async function resolverActorDesdeToken(accessToken) {
 
   const authUserId = userData.user.id;
 
-  const { data: miembro, error: miembroError } = await supabase
+  const { data: miembro, error: miembroError } = await supabaseAdmin
     .from('miembros')
     .select('id, gimnasio_id, rol')
     .eq('auth_user_id', authUserId)
@@ -36,7 +36,7 @@ export async function resolverActorDesdeToken(accessToken) {
 }
 
 export async function tieneAsignacion({ gimnasioId, entrenadorId, atletaId }) {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('asignaciones')
     .select('id')
     .eq('gimnasio_id', gimnasioId)
