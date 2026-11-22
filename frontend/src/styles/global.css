@@ -65,7 +65,12 @@ h1, h2 { font-family: var(--serif); font-weight: 400; letter-spacing: -.035em; }
 .guide-steps p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 @media (max-width: 760px) {
   .app-shell { padding: 0 0 env(safe-area-inset-bottom); }
+  .app-shell--mobile { padding-top: env(safe-area-inset-top); }
   .app-header--signed-in { flex-wrap: wrap; gap: 8px; margin: 0; padding: 8px 12px; }
+  .app-header:not(.app-header--signed-in) { flex-wrap: wrap; gap: 8px 12px; padding: max(10px, env(safe-area-inset-top)) 14px 10px; }
+  .app-header:not(.app-header--signed-in) .header-kicker { order: 3; flex: 1 0 100%; text-align: center; }
+  .app-header:not(.app-header--signed-in) .header-help { margin-left: auto; }
+  .onboarding-form input:not([type=checkbox]) { font-size: 16px; }
   .view-switcher { order: 3; width: 100%; justify-content: stretch; }
   .view-switcher button { flex: 1; padding-inline: 5px; font-size: 9px; }
   .signout-button { margin-left: auto; }

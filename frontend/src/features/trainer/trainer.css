@@ -226,6 +226,7 @@
   .trainer-portal-header { gap: 8px; }
 }
 @media (max-width: 620px) {
+  .trainer-access-shell { padding-top: env(safe-area-inset-top); }
   .trainer-portal-header { position: static; justify-content: space-between; padding: 9px 12px; }
   .trainer-portal-header .brand { font-size: 16px; }
   .trainer-portal-nav { order: 3; flex: 1 0 100%; justify-content: stretch; }
@@ -259,4 +260,37 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .trainer-access-shell *, .trainer-portal-shell * { scroll-behavior: auto; animation-duration: .01ms; transition-duration: .01ms; }
+}
+@media (max-width: 620px) {
+  .trainer-portal-shell { min-width: 0; padding-top: env(safe-area-inset-top); }
+  .trainer-portal-header, .trainer-portal-nav, .trainer-portal-actions { min-width: 0; }
+  .trainer-portal-nav button { min-height: 44px; font-size: 12px; }
+  .trainer-portal-actions .signout-button { min-height: 44px; }
+  .trainer-demo-tag { font-size: 10px; }
+  .trainer-desktop-page { padding-top: 17px; }
+  .trainer-page-heading p, .trainer-assistance-banner p, .trainer-pending-copy,
+  .trainer-measurement-card p, .empty-proposal p, .empty-proposal small { font-size: 12px; }
+  .trainer-metric-card { gap: 8px; }
+  .trainer-metric-card > span { font-size: 10px; line-height: 1.4; }
+  .trainer-metric-card > small { font-size: 11px; }
+  .trainer-assistance-banner { padding: 14px; }
+  .trainer-section-tabs button { font-size: 12px; }
+  .trainer-measurement-card h3 { font-size: 20px; }
+  .trainer-record-form label, .trainer-new-client-form label { font-size: 12px; }
+  .trainer-record-form :is(input, select, textarea), .trainer-new-client-form input,
+  .trainer-login-card input { font-size: 16px; }
+  .trainer-record-list span, .trainer-measure-history span, .trainer-record-list small,
+  .trainer-measure-history small, .local-exercise-row span, .local-exercise-row small,
+  .exercise-photo-editor > small { font-size: 11px; }
+  .trainer-record-list .button, .measurement-edit-button, .local-exercise-actions .button { min-height: 42px; }
+  .request-body dl > div, .request-body .inline-note, .notification-card span,
+  .notification-card small { font-size: 12px; }
+  .notification-card .button { min-height: 44px; font-size: 12px; }
+  .request-body h3 { font-size: 22px; }
+}
+@media (max-width: 370px) {
+  .trainer-mobile-page { padding-right: 12px; padding-left: 12px; }
+  .trainer-portal-header { gap: 5px; }
+  .trainer-portal-actions { gap: 2px; }
+  .trainer-portal-actions .signout-button { padding-inline: 6px; }
 }

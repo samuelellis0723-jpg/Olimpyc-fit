@@ -68,6 +68,14 @@
   .warmup-content { padding: 22px; }
   .warmup-photo img { aspect-ratio: 16 / 9; }
 }
+@media (max-width: 480px) {
+  .warmup-content { padding-right: 12px; padding-left: 12px; }
+  .warmup-context > p, .warmup-exercise-description, .warmup-video-note, .warmup-complete-panel > p { font-size: 12px; }
+  .warmup-progress > div:first-child, .warmup-sequence-heading h2 { font-size: 12px; }
+  .warmup-sequence-heading > span, .warmup-sequence-copy small, .warmup-sequence-status,
+  .warmup-continue-wrap small, .warmup-return-link { font-size: 11px; }
+  .warmup-sequence-item { min-height: 68px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .warmup-progress-track > span { transition: none; }
 }

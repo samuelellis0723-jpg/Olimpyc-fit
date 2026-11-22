@@ -1,5 +1,5 @@
-.client-app { display: flex; width: min(100%, 430px); min-height: calc(100dvh - 106px); flex-direction: column; margin: 18px auto 0; overflow: hidden; border: 1px solid rgba(37,37,32,.16); border-radius: 28px 28px 0 0; background: var(--paper); box-shadow: 0 15px 55px rgba(37,37,32,.12); }
-.client-page { width: 100%; flex: 1 0 auto; padding: 25px 18px 24px; }
+.client-app { display: flex; width: min(100%, 430px); min-height: calc(100dvh - 106px); flex-direction: column; margin: 18px auto 0; border: 1px solid rgba(37,37,32,.16); border-radius: 28px 28px 0 0; background: var(--paper); box-shadow: 0 15px 55px rgba(37,37,32,.12); }
+.client-page { width: 100%; flex: 1 0 auto; padding: 25px 18px calc(24px + 66px + env(safe-area-inset-bottom)); }
 .client-greeting { margin: 0 0 16px; }
 .client-greeting h1, .view-title h1 { margin: 6px 0 6px; font-size: 34px; line-height: 1.05; }
 .client-greeting p, .view-title p { margin: 0; color: var(--muted); font-size: 12px; }
@@ -111,7 +111,7 @@
 .routine-experience .view-title { display: grid; gap: 8px; }
 .routine-experience .view-title h1 { margin: 0; }
 .routine-experience .warmup-back { width: auto; min-height: 42px; border-radius: 8px; padding: 0 11px; font-size: 11px; }
-.bottom-nav { position: sticky; z-index: 10; bottom: 0; display: grid; grid-template-columns: repeat(3, 1fr); padding: 7px 10px max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgba(250,249,245,.97); }
+.bottom-nav { position: sticky; z-index: 10; bottom: 0; display: grid; grid-template-columns: repeat(3, 1fr); padding: 7px 10px max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--paper); }
 .bottom-nav button { display: flex; min-width: 0; min-height: 51px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; border-radius: 9px; color: var(--muted); background: transparent; font-size: 10px; font-weight: 700; }
 .bottom-nav button > span { font-size: 18px; line-height: 1; }
 .bottom-nav button.is-active { color: var(--terra); background: #f8efec; }
@@ -219,3 +219,27 @@
   .profile-section-heading { align-items: flex-start; gap: 7px; }
 }
 @media (prefers-reduced-motion: reduce) { .rest-modal-backdrop, .rest-modal-card { animation: none !important; transition: none !important; } }
+@media (max-width: 620px) {
+  .client-page { padding-bottom: calc(20px + 62px + env(safe-area-inset-bottom)); }
+  .client-greeting p, .view-title p, .today-card p, .selected-day-card p, .warmup-card > p, .rest-card p,
+  .profile-card p, .profile-cycle > p, .profile-section-intro { font-size: 13px; }
+  .week-button > span, .status-chip, .calendar-key, .today-card__meta > span:last-child { font-size: 11px; }
+  .profile-info > div { font-size: 12px; }
+  .profile-record-list li, .profile-chat-form label, .profile-chat-message p { font-size: 12px; }
+  .profile-chat-form :is(select, textarea) { font-size: 16px; }
+  .profile-help-action { font-size: 14px; }
+  .profile-more-menu button { font-size: 13px; }
+  .exercise-timer-row, .series-count, .prescription-summary, .session-demo-group,
+  .session-exercise-explanation, .session-exercise-equipment, .session-demo-heading p { font-size: 12px; }
+  .exercise-line strong { font-size: 13px; }
+  .exercise-line small { font-size: 11px; }
+  .exercise-timer-row { flex-wrap: wrap; }
+  .mini-action, .order-controls button, .anatomy-tabs button, .set-button { min-width: 44px; min-height: 44px; font-size: 11px; }
+  .order-controls { gap: 6px; }
+  .set-entry label { font-size: 11px; }
+  .series-set-button { font-size: 12px; }
+  .confirm-dialog { max-height: calc(100dvh - max(20px, env(safe-area-inset-top)) - max(20px, env(safe-area-inset-bottom))); overflow-y: auto; overscroll-behavior: contain; }
+  .rest-modal-backdrop { max-height: 100dvh; }
+  .rest-modal-card { max-height: calc(100dvh - max(24px, env(safe-area-inset-top)) - max(24px, env(safe-area-inset-bottom))); overflow-y: auto; overscroll-behavior: contain; }
+  .profile-chat-dialog { max-height: calc(100dvh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom))); overscroll-behavior: contain; }
+}
