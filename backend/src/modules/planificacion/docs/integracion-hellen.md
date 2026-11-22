@@ -2,6 +2,28 @@
 
 Esta guía traduce el contrato local de [CONTRATOS.md](../CONTRATOS.md) a estados y acciones de interfaz. Las rutas son relativas a `/api/v1`; Alex debe confirmar autenticación y montaje compartidos antes de consumirlas en la aplicación. La API local de demo usa actores ficticios.
 
+## Punto de entrada reproducible en modo simulado
+
+Desde la raíz del repositorio, instala y arranca la demo (por defecto usa proveedor simulado, fixtures ficticios y repo en memoria):
+
+```sh
+npm --prefix backend/src/modules/planificacion ci
+PLANIFICACION_PROVEEDOR=simulado npm --prefix backend/src/modules/planificacion start
+```
+
+El servidor escucha en `http://127.0.0.1:3001` y confirma `X-Planificacion-Demo: modo-simulado; datos-ficticios`. El loopback solo es accesible desde la misma máquina. Si Vite/frontend corre en otro puerto u origen, configura un proxy de desarrollo local que conserve la ruta `/api/v1` y la reenvíe al target `http://127.0.0.1:3001`; así el navegador habla con frontend en el mismo origen y el servidor demo no necesita ni emite CORS. No apuntes un teléfono u otro equipo a `127.0.0.1` esperando acceder al servidor del portátil.
+
+Para la demo, usa `X-Demo-Actor` con estos valores exactos:
+
+| Rol | Header | Fixture |
+|---|---|---|
+| Entrenadora asignada | `X-Demo-Actor: entrenadoraEva` | Eva (`T1`, gimnasio `G1`, asignada a `A1`) |
+| Entrenador no asignado | `X-Demo-Actor: entrenadorAjeno` | Comprueba el 404 genérico de asignación |
+| Atleta | `X-Demo-Actor: atletaEva` | Ana (`A1`, gimnasio `G1`) |
+| Atleta de otro gimnasio | `X-Demo-Actor: atletaOtroGimnasio` | Comprueba el aislamiento (`A2`, `G2`) |
+
+Estos nombres y los alias compatibles de bearer son exclusivamente identidades ficticias locales; no son tokens Supabase ni identidades de producción. Los códigos fixture `A1`, `EV1`, `E1`, `E2` también son alias ficticios. En la API integrada, usar los UUID canónicos que la API devuelve.
+
 ## Consumo según rol
 
 **Entrenador asignado:** puede generar borrador, consultar versión, editar borrador, aprobar y reorganizar una versión vigente. Mostrar claramente quién/qué versión se edita, revisión y estado. No presentar una propuesta como publicada antes de respuesta exitosa de aprobación.
@@ -14,12 +36,12 @@ Esta guía traduce el contrato local de [CONTRATOS.md](../CONTRATOS.md) a estado
 |---|---|---|---|
 | Crear borrador IA | `POST /atletas/:atletaId/planes` `{"origen":"IA","evaluacionId":"EV1"}` | `201 Plan`, inicialmente `borrador` | Confirmar que es una propuesta que requiere revisión; no publicarla automáticamente. |
 | Consultar versión | `GET /planes/:versionId` | `200 Plan` | Renderizar versión, base si existe, origen, revisión, diferencias y estado. Solo entrenador asignado. |
-| Editar borrador | `PATCH /planes/:versionId` `{"revisionEsperada":1,"cambios":{"items":[{"itemId":"…","descansoSegundos":60}]}}` | `200 Plan`, revisión incrementada | Al recibirlo actualizar descanso y revisión. Si PATCH aún no se envía, la edición es local y sigue pendiente; guardar envía PATCH. |
-| Aprobar | `POST /planes/:versionId/aprobacion` `{"revisionEsperada":2}` | `200 {plan,anterior}` | Solo entonces indicar publicado. Informar que la versión anterior pasa a histórica cuando exista. |
+| Editar borrador | `PATCH /planes/{versionIdDevueltoPorAPI}` `{"revisionEsperada":1,"cambios":{"items":[{"itemId":"{itemIdDevueltoPorAPI}","descansoSegundos":60}]}}` | `200 Plan`, revisión incrementada | Al recibirlo actualizar descanso y revisión. Si PATCH aún no se envía, la edición es local y sigue pendiente; guardar envía PATCH. |
+| Aprobar | `POST /planes/{versionIdDevueltoPorAPI}/aprobacion` `{"revisionEsperada":2}` | `200 {plan,anterior}` | Solo entonces indicar publicado. Informar que la versión anterior pasa a histórica cuando exista. |
 | Reorganizar vigente | `POST /planes/:versionId/reorganizaciones` `{"motivo":"Regreso con tres días","ausencia":true,"disponibilidadRegreso":[1,4,6]}` | `201 {plan,diferencias}`; plan nuevo en borrador | Comparar cambios, permitir revisión y conservar la versión publicada hasta una segunda aprobación. |
 | Rutina de atleta | `GET /me/rutina?fecha=2026-11-23` | `200 {estado,plan?,dia?}` | `disponible`, `sin_sesion_programada` o `sin_plan`; la fecha debe ser ISO local. |
 
-En PATCH, `items` puede incluir `itemId` y cambios parciales en `ejercicioId`, `criterioId`, `series`, `objetivoPorSerie`, `descansoSegundos` o `explicacion`; `proximaRevision` es opcional dentro de `cambios`. Mostrar datos de la respuesta persistida. La edición local previa a PATCH debe verse como no guardada.
+En PATCH, `items` puede incluir `itemId` y cambios parciales en `ejercicioId`, `criterioId`, `series`, `objetivoPorSerie`, `descansoSegundos` o `explicacion`; `proximaRevision` es opcional dentro de `cambios`. Mostrar datos de la respuesta persistida. La edición local previa a PATCH debe verse como no guardada. Para PATCH y aprobación, extraer `versionId` e `itemId` de la respuesta de creación/consulta; no usar los alias de fixture `V1`/`V2` como si fueran UUID ni tokens de demo como credenciales reales.
 
 ## Comparación de versiones
 
@@ -41,7 +63,7 @@ Los errores usan JSON `{codigo,mensaje,camposPendientes?,revisionActual?}`:
 
 ## Fixtures para validar la interfaz
 
-Con proveedor simulado y `X-Planificacion-Demo: modo-simulado; datos-ficticios`, probar estas pantallas con datos sintéticos:
+Con proveedor simulado (marcado en la respuesta con `X-Planificacion-Demo: modo-simulado; datos-ficticios`), usar `X-Demo-Actor` según el rol y probar estas pantallas con datos sintéticos:
 
 1. Eva genera V1; cabecera visible **Borrador · revisión 1**. Ana todavía no la ve.
 2. Eva cambia localmente el descanso de E2 a 60 s; antes de guardar, distinguir edición pendiente. PATCH exitoso muestra revisión 2.

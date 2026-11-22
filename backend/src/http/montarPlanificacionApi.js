@@ -1,5 +1,9 @@
 import express from 'express';
-import { ErrorPlanificacion } from '../adapters/errorPlanificacion.js';
+import { crearRouterPlanificacion } from '../modules/planificacion/http/crearRouterPlanificacion.mjs';
+import { crearServicioPlanificacion } from '../modules/planificacion/aplicacion/crearServicioPlanificacion.mjs';
+import { crearProveedorDeepSeek } from '../modules/planificacion/proveedores/crearProveedorDeepSeek.mjs';
+import { crearProveedorSimulado } from '../modules/planificacion/demo/proveedor-simulado.mjs';
+import { ErrorPlanificacion } from '../modules/planificacion/dominio/errores.mjs';
 import {
   resolverActorDesdeToken,
   tieneAsignacion,
@@ -11,36 +15,31 @@ import {
 } from '../adapters/fuentesPlanificacionSupabase.js';
 import { crearRepositorioPlanificacionSupabase } from '../adapters/repositorioPlanificacionSupabase.js';
 
-async function cargarModuloPlanificacionSiExiste() {
-  try {
-    const [
-      { crearRouterPlanificacion },
-      { crearServicioPlanificacion },
-      { crearProveedorDeepSeek },
-      { crearProveedorSimulado },
-    ] = await Promise.all([
-      import('../../../src/modules/planificacion/http/crearRouterPlanificacion.mjs'),
-      import('../../../src/modules/planificacion/aplicacion/crearServicioPlanificacion.mjs'),
-      import('../../../src/modules/planificacion/proveedores/crearProveedorDeepSeek.mjs'),
-      import('../../../src/modules/planificacion/demo/proveedor-simulado.mjs'),
-    ]);
-
-    return {
-      disponible: true,
-      crearRouterPlanificacion,
-      crearServicioPlanificacion,
-      crearProveedorDeepSeek,
-      crearProveedorSimulado,
-    };
-  } catch {
-    return { disponible: false };
-  }
-}
-
 export function montarPlanificacionApi(app, { limiteBody = '1mb' } = {}) {
   app.use(express.json({ limit: limiteBody }));
 
   const repo = crearRepositorioPlanificacionSupabase();
+
+  const usaDeepSeek = Boolean(process.env.DEEPSEEK_API_KEY);
+  const proveedor = usaDeepSeek
+    ? crearProveedorDeepSeek({
+        apiKey: process.env.DEEPSEEK_API_KEY,
+        model: process.env.DEEPSEEK_MODEL,
+      })
+    : crearProveedorSimulado();
+
+  const servicio = crearServicioPlanificacion({
+    proveedor,
+    repo,
+    obtenerEvaluacion,
+    obtenerCatalogo,
+    tieneAsignacion,
+    obtenerHistorialEjecutado,
+    reloj: () => new Date().toISOString(),
+    modeloProveedor: usaDeepSeek
+      ? process.env.DEEPSEEK_MODEL || 'deepseek-chat'
+      : 'simulado',
+  });
 
   async function resolverActor(req) {
     const authHeader = req.get('authorization') || '';
@@ -58,53 +57,7 @@ export function montarPlanificacionApi(app, { limiteBody = '1mb' } = {}) {
     }
   }
 
-  const router = express.Router();
-  let inicializado = false;
-
-  async function asegurarRouter(req, res, next) {
-    if (inicializado) return next();
-
-    const mod = await cargarModuloPlanificacionSiExiste();
-    if (mod.disponible) {
-      const usaDeepSeek = Boolean(process.env.DEEPSEEK_API_KEY);
-      const proveedor = usaDeepSeek
-        ? mod.crearProveedorDeepSeek({
-            apiKey: process.env.DEEPSEEK_API_KEY,
-            model: process.env.DEEPSEEK_MODEL,
-          })
-        : mod.crearProveedorSimulado();
-
-      const servicio = mod.crearServicioPlanificacion({
-        proveedor,
-        repo,
-        obtenerEvaluacion,
-        obtenerCatalogo,
-        tieneAsignacion,
-        obtenerHistorialEjecutado,
-        reloj: () => new Date().toISOString(),
-        modeloProveedor: usaDeepSeek
-          ? process.env.DEEPSEEK_MODEL || 'deepseek-chat'
-          : 'simulado',
-      });
-
-      const subRouter = mod.crearRouterPlanificacion({ servicio, resolverActor });
-      router.use(subRouter);
-    } else {
-      router.get('/me/rutina', async (r, _res, nextErr) => {
-        try {
-          await resolverActor(r);
-          _res.status(200).json({ estado: 'sin_plan' });
-        } catch (e) {
-          nextErr(e);
-        }
-      });
-    }
-
-    inicializado = true;
-    return next();
-  }
-
-  router.use(asegurarRouter);
+  const router = crearRouterPlanificacion({ servicio, resolverActor });
   app.use('/api/v1', router);
 
   app.use((err, _req, res, _next) => {

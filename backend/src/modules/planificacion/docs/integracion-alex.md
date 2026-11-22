@@ -2,6 +2,13 @@
 
 Esta nota propone pasos de integración; no afirma que los servicios compartidos estén conectados. Las interfaces canónicas están en [CONTRATOS.md](../CONTRATOS.md). Coordinar cualquier discrepancia antes de cambiar rutas o datos que consume Hellen.
 
+## Acuerdos para el adaptador persistente
+
+- La API integrada entrega identificadores UUID canónicos. Los códigos ficticios del módulo/demo (`A1`, `EV1`, `E1`, `E2`, `V1`, `V2`) se resuelven dentro de adaptadores de demo; no son UUID ni deben convertirse en identificadores públicos de producción. La demo conserva esos códigos para que su guion siga siendo reproducible.
+- `actor.usuarioId` representa `miembros.id` después de que el servidor verifique la identidad Supabase Auth y resuelva su membresía. No representa el `sub`/subject de Supabase. El módulo conserva su contrato público; la traducción vive en el adaptador de identidad.
+- Alex informó que las funciones Supabase `guardar_revision_plan` y `aprobar_version_plan` ya existen, pero no tienen pruebas de ejecución. El SQL versionado, las firmas y las respuestas están pendientes de publicación. No inferir parámetros, columnas ni códigos SQL: inspeccionarlos y acordarlos al conectar los adaptadores.
+- Continúan pendientes los adaptadores de evaluación, catálogo, asignación, historial y repositorio, además de usuarios Auth vinculados a `miembros` y el guard atómico al crear borradores. La existencia de las funciones RPC no acredita persistencia integrada ni atómica.
+
 ## 1. Identidad, gimnasio y asignación
 
 - Montar `crearRouterPlanificacion({ servicio, resolverActor })` en `app.use('/api/v1', router)`.
@@ -46,5 +53,18 @@ Alex debe confirmar el prefijo final, middlewares, límites de body, formato com
 - Contrato y dueño de sesiones: versión retenida por SE1, resumen ejecutado y disponibilidad de historial.
 - Prefijo/router común, configuración segura, límites de solicitud y redacción de logs.
 - Pruebas integradas con Supabase/PostgreSQL y autenticación real, aislamiento entre gimnasios, doble edición/aprobación y reorganización concurrente.
+
+## Checklist de validación con Supabase real
+
+Cuando estén conectados los adaptadores, registrar respuestas observadas de RPC sin inventar su firma y comprobar:
+
+1. Mapear el error de revisión conocido a HTTP 409 y adjuntar `revisionActual` cuando la respuesta RPC permita determinarla; confirmar el mapeo tras inspeccionar las respuestas reales.
+2. Lanzar dos ediciones concurrentes con la misma revisión: exactamente una debe tener éxito y la otra responder conflicto.
+3. Desplazar la versión base entre la lectura y la escritura de una reorganización: responder 409 `BASE_NO_VIGENTE`, no guardar borrador y conservar la versión vigente sin pérdida.
+4. Aprobar de forma transaccional: solo una versión vigente, la anterior histórica, sin estado parcial ante fallo y sin alterar revisiones previas.
+5. Reiniciar el proceso y comprobar que las versiones y revisiones permanecen disponibles desde almacenamiento persistente.
+6. Verificar identidad Auth real resuelta a `miembros.id`, autorización por asignación y aislamiento entre gimnasios/atletas en lecturas y mutaciones.
+
+Las pruebas con dobles del módulo no demuestran estos comportamientos de Supabase/PostgreSQL.
 
 La evidencia actual se limita al módulo con identidad ficticia y repositorio temporal. Consulta [entrega y guion](./entrega-samuel.md) y [guía de interfaz](./integracion-hellen.md).

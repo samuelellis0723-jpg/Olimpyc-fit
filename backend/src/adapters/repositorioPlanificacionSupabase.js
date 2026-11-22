@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../db/supabase.js';
-import { ErrorPlanificacion } from './errorPlanificacion.js';
+import { ErrorPlanificacion } from '../../modules/planificacion/dominio/errores.mjs';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -54,10 +54,7 @@ function parsearDiferencias(raw) {
   };
 }
 
-function extraerDatosUtilizados(item, motivoVisible) {
-  if (Array.isArray(item?.datosUtilizados) && item.datosUtilizados.length > 0) {
-    return item.datosUtilizados.filter((d) => DATOS_UTILIZADOS_PERMITIDOS.has(d));
-  }
+function extraerDatosUtilizados(motivoVisible) {
   if (typeof motivoVisible === 'string' && motivoVisible.startsWith('{')) {
     try {
       const parsed = JSON.parse(motivoVisible);
@@ -74,10 +71,7 @@ function extraerDatosUtilizados(item, motivoVisible) {
   return ['objetivo'];
 }
 
-function extraerExplicacion(item, motivoVisible) {
-  if (typeof item?.explicacion === 'string' && item.explicacion.length > 0) {
-    return item.explicacion;
-  }
+function extraerExplicacion(motivoVisible) {
   if (typeof motivoVisible === 'string' && motivoVisible.startsWith('{')) {
     try {
       const parsed = JSON.parse(motivoVisible);
@@ -98,6 +92,18 @@ function serializarMotivoItem(item) {
     return JSON.stringify({ explicacion, datosUtilizados });
   }
   return explicacion || null;
+}
+
+function serializarMotivoCambio(plan) {
+  const motivo = plan?.motivo ?? null;
+  const diferencias = plan?.diferencias ?? null;
+  if (diferencias && typeof diferencias === 'object') {
+    return JSON.stringify({
+      motivo: motivo ?? '',
+      diferencias,
+    });
+  }
+  return motivo;
 }
 
 async function hidratarPlanDesdeFila(filaVersion) {
@@ -138,9 +144,9 @@ async function hidratarPlanDesdeFila(filaVersion) {
         unidad: it.unidad_objetivo === 'segundos' ? 'segundos' : 'repeticiones',
       },
       descansoSegundos: Number(it.descanso_seg ?? 60),
-      explicacion: extraerExplicacion(null, it.motivo_visible),
+      explicacion: extraerExplicacion(it.motivo_visible),
       criterioId: it.criterio_id ?? '',
-      datosUtilizados: extraerDatosUtilizados(null, it.motivo_visible),
+      datosUtilizados: extraerDatosUtilizados(it.motivo_visible),
     });
     itemsPorDia.set(it.dia_id, lista);
   }
@@ -164,7 +170,7 @@ async function hidratarPlanDesdeFila(filaVersion) {
     try {
       const parsed = JSON.parse(motivo);
       if (typeof parsed?.motivo === 'string') {
-        motivo = parsed.motivo;
+        motivo = parsed.motivo || null;
       }
     } catch {
       // conservar texto original
@@ -264,7 +270,7 @@ export function crearRepositorioPlanificacionSupabase() {
         origen: plan.origen === 'DeepSeek' ? 'DeepSeek' : 'manual',
         revision: 1,
         version_catalogo: plan.catalogoVersion ?? 'v1',
-        motivo_cambio: plan.motivo ?? null,
+        motivo_cambio: serializarMotivoCambio(plan),
         proxima_revision: plan.proximaRevision ?? null,
       })
       .select('*')
@@ -277,6 +283,7 @@ export function crearRepositorioPlanificacionSupabase() {
       const { data: diaInsertado, error: diaErr } = await supabaseAdmin
         .from('dias_plan')
         .insert({
+          ...(esUuid(dia.diaId) ? { id: dia.diaId } : {}),
           version_id: insertada.id,
           indice_semanal: diaSemana,
           dia_programado: String(diaSemana),
@@ -289,6 +296,7 @@ export function crearRepositorioPlanificacionSupabase() {
 
       if (Array.isArray(dia.items) && dia.items.length > 0) {
         const filasItems = dia.items.map((item, idx) => ({
+          ...(esUuid(item.itemId) ? { id: item.itemId } : {}),
           dia_id: diaInsertado.id,
           ejercicio_id: item.ejercicioId,
           criterio_id: item.criterioId || null,
@@ -320,10 +328,12 @@ export function crearRepositorioPlanificacionSupabase() {
 
     const diasPayload = Array.isArray(cambios.dias)
       ? cambios.dias.map((d) => ({
+          ...(esUuid(d.diaId) ? { id: d.diaId } : {}),
           indice_semanal: normalizarDiaIso(d.diaSemana),
           dia_programado: String(normalizarDiaIso(d.diaSemana)),
           etiqueta: `Día ${normalizarDiaIso(d.diaSemana)}`,
           items: (d.items ?? []).map((it, idx) => ({
+            ...(esUuid(it.itemId) ? { id: it.itemId } : {}),
             ejercicio_id: it.ejercicioId,
             criterio_id: it.criterioId || null,
             orden: Number(it.orden ?? idx + 1),

@@ -53,8 +53,8 @@ export function crearServicioPlanificacion({ proveedor, repo, obtenerEvaluacion,
     const resumen = (historial ?? []).map(({ fecha, estado, diaSemana, ejercicioIds }) => ({ fecha, estado, diaSemana, ejercicioIds: clonar(ejercicioIds) }));
     return { perfil, historialEjecutado: resumen };
   }
-  function diasConIds(dias, versionId) {
-    return dias.map((d, di) => ({ diaId: `${versionId}:D${di + 1}:${randomUUID()}`, diaSemana: d.diaSemana, items: d.items.map((it, ii) => ({ ...clonar(it), itemId: `${versionId}:D${di + 1}:I${ii + 1}:${randomUUID()}` })) }));
+  function diasConIds(dias) {
+    return dias.map((d) => ({ diaId: randomUUID(), diaSemana: d.diaSemana, items: d.items.map((it) => ({ ...clonar(it), itemId: randomUUID() })) }));
   }
   function crearPlan({ e, c, propuesta, contexto, actor, atletaId, origen, versionBaseId, motivo, diferencias }) {
     let validada;
@@ -63,7 +63,7 @@ export function crearServicioPlanificacion({ proveedor, repo, obtenerEvaluacion,
       if (origen === 'manual' && cause instanceof ErrorPlanificacion) throw cause;
       throw proveedorInvalido();
     }
-    return { gimnasioId: actor.gimnasioId, atletaId, evaluacionId: e.evaluacionId, origen, estado: 'borrador', revision: 1, catalogoVersion: c.catalogoVersion, dias: diasConIds(validada.dias, `NUEVO-${randomUUID()}`), creadoEn: reloj(), ...(versionBaseId ? { versionBaseId } : {}), ...(motivo ? { motivo } : {}), ...(diferencias ? { diferencias } : {}) };
+    return { gimnasioId: actor.gimnasioId, atletaId, evaluacionId: e.evaluacionId, origen, estado: 'borrador', revision: 1, catalogoVersion: c.catalogoVersion, dias: diasConIds(validada.dias), creadoEn: reloj(), ...(versionBaseId ? { versionBaseId } : {}), ...(motivo ? { motivo } : {}), ...(diferencias ? { diferencias } : {}) };
   }
   async function obtenerPlanAsignado(actor, versionId) {
     soloEntrenador(actor);
@@ -188,7 +188,7 @@ export function crearServicioPlanificacion({ proveedor, repo, obtenerEvaluacion,
         let diasValidados;
         try { diasValidados = validarBorrador(propuesta, contexto).dias; } catch { throw proveedorInvalido(); }
         if (!esObjeto(respuesta) || respuesta.tipo !== 'propuesta' || typeof respuesta.explicacion !== 'string' || !respuesta.explicacion.trim()) throw proveedorInvalido();
-        const diasNuevos = diasConIds(diasValidados, `NUEVO-${randomUUID()}`);
+        const diasNuevos = diasConIds(diasValidados);
         const diferencias = calcularDiferencias(plan.dias, diasNuevos, respuesta.explicacion);
         const borrador = { gimnasioId: actor.gimnasioId, atletaId: plan.atletaId, evaluacionId: plan.evaluacionId, origen: 'DeepSeek', estado: 'borrador', revision: 1, catalogoVersion: c.catalogoVersion, dias: diasNuevos, creadoEn: reloj(), versionBaseId: plan.versionId, motivo: normalizada.motivo, diferencias };
         const guardado = await repo.crearBorrador({ gimnasioId: actor.gimnasioId, atletaId: plan.atletaId, plan: borrador });
