@@ -3,7 +3,7 @@ import Brand from '../../components/Brand.jsx';
 import './trainer.css';
 
 // Interfaz de acceso únicamente. La autenticación de entrenador aún no está integrada.
-export default function TrainerLogin({ onBackToClient }) {
+export default function TrainerLogin({ demoAvailable = false, onOpenDemo, onBackToClient }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -29,7 +29,10 @@ export default function TrainerLogin({ onBackToClient }) {
           {message && <p className="trainer-access-message" role="status">{message}</p>}
           <button className="button button--dark" type="submit">Continuar</button>
         </form>
-        <p className="trainer-demo-access">El panel está protegido y permanecerá cerrado hasta validar una sesión con rol de entrenador.</p>
+        {demoAvailable && <div className="trainer-demo-access">
+          <p>Acceso local para revisar la interfaz. No valida credenciales ni conecta con el backend.</p>
+          <button className="button button--outline" type="button" onClick={onOpenDemo}>Ver dashboard de entrenador (demo)</button>
+        </div>}
         <button className="trainer-back-link" type="button" onClick={onBackToClient}>Volver al acceso de cliente</button>
       </section>
     </main>

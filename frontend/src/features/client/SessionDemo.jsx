@@ -1,24 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DEMO_EXERCISES } from '../../mocks/demoData.js';
+import { DEMO_ARM_SESSION } from '../../mocks/demoArmSession.js';
 import AnatomyGuide from './anatomy/AnatomyGuide.jsx';
 
 function normalizeRoutineItem(item) {
   const demoExercise = DEMO_EXERCISES.find(exercise => exercise.exerciseId === item.ejercicioId || exercise.code === item.ejercicioId);
+  const armExercise = DEMO_ARM_SESSION.find(exercise => exercise.exerciseId === item.ejercicioId);
   const validSeries = Number.isInteger(item.series) && item.series > 0;
   const validRest = Number.isInteger(item.descansoSegundos) && item.descansoSegundos >= 0;
   return {
     itemId: item.itemId,
     exerciseId: item.ejercicioId,
-    code: demoExercise?.code || item.ejercicioId || '—',
-    name: demoExercise?.name || (item.ejercicioId ? `Ejercicio ${item.ejercicioId}` : 'Ejercicio pendiente'),
-    group: demoExercise?.group || 'Grupo muscular pendiente de asignación',
+    code: item.demo ? 'DEMO' : demoExercise?.code || armExercise?.code || item.ejercicioId || '—',
+    name: item.nombre || demoExercise?.name || armExercise?.name || (item.ejercicioId ? `Ejercicio ${item.ejercicioId}` : 'Ejercicio pendiente'),
+    group: item.grupoMuscular || demoExercise?.group || armExercise?.group || 'Grupo muscular pendiente de asignación',
+    equipment: item.equipo || armExercise?.equipment || null,
     order: Number.isInteger(item.orden) ? item.orden : 0,
     seriesCount: validSeries ? item.series : null,
     restSeconds: validRest ? item.descansoSegundos : null,
     target: item.objetivoPorSerie,
     explanation: item.explicacion,
     targetText: item.objetivoPorSerie ? `${item.objetivoPorSerie.cantidad} ${item.objetivoPorSerie.unidad}` : null,
-    image: null,
+    image: item.imagePreviewUrl || armExercise?.image || null,
+    imageAlt: item.imageAlt || `Imagen de demostración: ${item.nombre || demoExercise?.name || armExercise?.name || 'ejercicio'}`,
+    video: item.videoPreviewUrl || null,
+    imageCaption: item.imagePreviewUrl ? 'Foto de ejercicio · vista previa demo' : null,
   };
 }
 
@@ -202,8 +208,9 @@ export default function SessionDemo({ routineItems = [], itemsLoading = false, i
         const target = exercise.target ? `${exercise.target.cantidad} ${exercise.target.unidad}` : null;
         return <li key={exercise.itemId} className={exerciseActive ? 'is-active-exercise' : exerciseComplete ? 'is-complete-exercise' : 'is-locked-exercise'}>
           <div className="exercise-line"><span className="exercise-code">{exercise.code}</span><div><strong>{exercise.name}</strong><small>{exerciseComplete ? 'Ejercicio completado' : exerciseActive ? 'Ejercicio activo' : 'Bloqueado hasta completar el anterior'}</small></div><div className="order-controls"><button aria-label={`Mover ${exercise.name} hacia arriba`} disabled={index === 0 || !started || Boolean(restState)} type="button" onClick={() => move(index, -1)}>↑</button><button aria-label={`Mover ${exercise.name} hacia abajo`} disabled={index === order.length - 1 || !started || Boolean(restState)} type="button" onClick={() => move(index, 1)}>↓</button></div></div>
-          {exercise.image ? <figure className="session-exercise-visual"><img src={exercise.image} alt={`Imagen de demostración: ${exercise.name}`} onError={event => { event.currentTarget.hidden = true; }} /><figcaption>Demostración visual · dato ficticio</figcaption></figure> : <p className="session-visual-pending" role="status">Video pendiente · guía visual no disponible</p>}
+          {exercise.video ? <figure className="session-exercise-visual session-exercise-visual--video"><video src={exercise.video} controls muted loop playsInline preload="metadata" aria-label={`Video de demostración: ${exercise.name}`} /><figcaption>Video de ejercicio · vista previa demo</figcaption></figure> : exercise.image ? <figure className="session-exercise-visual"><img src={exercise.image} alt={exercise.imageAlt || `Imagen de demostración: ${exercise.name}`} onError={event => { event.currentTarget.hidden = true; }} /><figcaption>{exercise.imageCaption || 'Demostración visual · dato ficticio'}</figcaption></figure> : <p className="session-visual-pending" role="status">Guía visual pendiente</p>}
           {exercise.explanation && <p className="session-exercise-explanation">{exercise.explanation}</p>}
+          <p className="session-exercise-equipment"><strong>Equipo:</strong> {exercise.equipment || 'Pendiente de registro'}</p>
           {demoPreset ? <div className="session-demo-group"><span>Grupo muscular de la demostración</span><strong>{exercise.group}</strong></div> : <AnatomyGuide exercise={exercise} />}
           {exercise.seriesCount ? <>
             <p className="prescription-summary">{exercise.seriesCount} series{target ? ` · ${target} por serie` : ''}{exercise.restSeconds !== null ? ` · ${exercise.restSeconds}s de descanso` : ''}</p>

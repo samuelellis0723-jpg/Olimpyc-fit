@@ -4,7 +4,7 @@ import TrainerDesktop from './TrainerDesktop.jsx';
 import TrainerMobile from './TrainerMobile.jsx';
 import './trainer.css';
 
-export default function TrainerPortal({ approvedDays, approvedVersion, setApprovedDays, setApprovedVersion, draft, setDraft, queue, onAttend, setNotice, onExitDemo }) {
+export default function TrainerPortal({ clients, selectedClient, onSelectClient, onAddClient, hasApprovedPlan, approvedDays, approvedVersion, approvedRoutineDays, draft, setDraft, profileData, attendanceRecords, assessmentRecords, onSaveProfile, onAddAttendance, onAddAssessment, onUpdateAssessment, onDeleteAttendance, onDeleteAssessment, onApproveDemoRoutine, queue, onAttend, setNotice, onExitDemo }) {
   const [section, setSection] = useState('dashboard');
   return <div className="trainer-portal-shell">
     <header className="trainer-portal-header">
@@ -15,8 +15,7 @@ export default function TrainerPortal({ approvedDays, approvedVersion, setApprov
       </nav>
       <div className="trainer-portal-actions"><span className="trainer-demo-tag">Modo demostración</span><button type="button" className="signout-button" onClick={onExitDemo}>Salir</button></div>
     </header>
-    {section === 'dashboard'
-      ? <TrainerDesktop approvedDays={approvedDays} approvedVersion={approvedVersion} setApprovedDays={setApprovedDays} setApprovedVersion={setApprovedVersion} draft={draft} setDraft={setDraft} queue={queue} onAttend={onAttend} setNotice={setNotice} />
-      : <TrainerMobile queue={queue} onAttend={onAttend} />}
+    <TrainerDesktop active={section === 'dashboard'} clients={clients} selectedClient={selectedClient} onSelectClient={onSelectClient} onAddClient={onAddClient} hasApprovedPlan={hasApprovedPlan} approvedDays={approvedDays} approvedVersion={approvedVersion} approvedRoutineDays={approvedRoutineDays} draft={draft} setDraft={setDraft} profileData={profileData} attendanceRecords={attendanceRecords} assessmentRecords={assessmentRecords} onSaveProfile={onSaveProfile} onAddAttendance={onAddAttendance} onAddAssessment={onAddAssessment} onUpdateAssessment={onUpdateAssessment} onDeleteAttendance={onDeleteAttendance} onDeleteAssessment={onDeleteAssessment} onApproveDemoRoutine={onApproveDemoRoutine} queue={queue} onAttend={onAttend} setNotice={setNotice} />
+    <div hidden={section !== 'requests'}><TrainerMobile queue={queue} onAttend={onAttend} /></div>
   </div>;
 }

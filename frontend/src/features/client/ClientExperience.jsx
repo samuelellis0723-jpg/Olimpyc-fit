@@ -21,7 +21,7 @@ function mondayOf(date) {
   return result;
 }
 
-export default function ClientExperience({ clientProfile = DEMO_CLIENT, approvedDays, approvedVersion, setNotice, onRequestHelp }) {
+export default function ClientExperience({ clientProfile = DEMO_CLIENT, hasApprovedPlan = true, approvedDays = [], approvedVersion, approvedRoutineDays = null, setNotice, onRequestHelp }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const [selectedDate, setSelectedDate] = useState(today);
@@ -39,11 +39,15 @@ export default function ClientExperience({ clientProfile = DEMO_CLIENT, approved
   const dateKey = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
   useEffect(() => {
     let current = true;
-    planService.getClientRoutine(dateKey, approvedDays, approvedVersion)
+    if (!hasApprovedPlan) {
+      setRoutineResult({ dateKey, response: { estado: 'sin_plan', demo: true } });
+      return () => { current = false; };
+    }
+    planService.getClientRoutine(dateKey, approvedDays, approvedVersion, approvedRoutineDays)
       .then(response => { if (current) setRoutineResult({ dateKey, response }); })
       .catch(error => { if (current) setRoutineResult({ dateKey, error }); });
     return () => { current = false; };
-  }, [dateKey, approvedDays, approvedVersion]);
+  }, [dateKey, approvedDays, approvedVersion, approvedRoutineDays, hasApprovedPlan]);
   const start = mondayOf(today);
   const days = useMemo(() => WEEK.map((day, index) => {
     const date = new Date(start);
@@ -57,9 +61,11 @@ export default function ClientExperience({ clientProfile = DEMO_CLIENT, approved
   const isTrainingDay = stateFromApi ? stateFromApi === 'disponible' : (!liveApiConfigured && approvedDays.includes(selectedIso));
   const isRestDay = stateFromApi ? stateFromApi === 'sin_sesion_programada' : (!liveApiConfigured && !approvedDays.includes(selectedIso));
   const isPending = stateFromApi === 'sin_plan' || Boolean(currentRoutine?.error) || (!stateFromApi && liveApiConfigured);
-  const isDemoMonday = !liveApiConfigured && clientProfile?.isDemo === true && selectedIso === 1 && isTrainingDay;
-  const useDemoArmSession = isDemoMonday;
+  const isDemoMonday = !liveApiConfigured && clientProfile?.id === DEMO_CLIENT.id && selectedIso === 1 && isTrainingDay;
+  const useDemoArmSession = isDemoMonday && !Array.isArray(approvedRoutineDays);
   const sessionRoutineItems = useDemoArmSession ? DEMO_ARM_SESSION : currentRoutine?.response?.dia?.items || [];
+  const assignedExerciseCount = currentRoutine?.response?.dia?.items?.length || 0;
+  const assignedFocus = currentRoutine?.response?.dia?.enfoque || '';
   const warmupCompletedForDay = Boolean(warmupCompletedDates[dateKey]);
   const selectedDay = days.find(day => day.selected) || days[0];
   const routineVersion = currentRoutine?.response?.plan?.versionId?.replace('DEMO-', '') || approvedVersion;
@@ -70,10 +76,10 @@ export default function ClientExperience({ clientProfile = DEMO_CLIENT, approved
   const niceDateLabel = dateLabel.charAt(0).toLocaleUpperCase('es') + dateLabel.slice(1);
   const workSummary = isPending
     ? { status: currentRoutine?.error ? 'No se pudo consultar el plan' : 'Consultando rutina', title: currentRoutine?.error ? 'Rutina pendiente de conexión' : 'Cargando tu plan', description: currentRoutine?.error ? 'La consulta no confirmó el estado del día. Revisa la conexión e inténtalo de nuevo.' : 'Estamos consultando el día seleccionado.' }
-    : isDemoMonday
+    : useDemoArmSession
       ? { status: 'Demo · dato simulado', title: SIMULATED_MONDAY_FOCUS.title, description: SIMULATED_MONDAY_FOCUS.note }
       : isTrainingDay
-        ? { status: 'Día de entrenamiento', title: 'Entrenamiento asignado', description: `La rutina aprobada ${currentRoutine?.response?.plan?.versionId?.replace('DEMO-', '') || approvedVersion} contempla entrenamiento este día. El detalle de los ejercicios está pendiente de registro.` }
+        ? { status: 'Día de entrenamiento', title: 'Entrenamiento asignado', description: assignedExerciseCount ? `La rutina aprobada incluye ${assignedExerciseCount} ejercicios para este día.` : `La rutina aprobada ${currentRoutine?.response?.plan?.versionId?.replace('DEMO-', '') || approvedVersion} contempla entrenamiento este día. El detalle de los ejercicios está pendiente de registro.` }
         : { status: 'Día de descanso', title: selectedDay?.isToday ? 'Hoy toca descansar' : 'Día de descanso', description: `Según la rutina aprobada ${currentRoutine?.response?.plan?.versionId?.replace('DEMO-', '') || approvedVersion}, este día no hay entrenamiento programado.` };
 
   function submitHelpRequest() {
@@ -138,9 +144,9 @@ export default function ClientExperience({ clientProfile = DEMO_CLIENT, approved
   return <div className={`client-app ${tab === 'profile' ? 'client-app--profile' : ''}`}>
     <div className="client-page">
       {tab === 'home' && <>
-        <header className="client-greeting"><span className="eyebrow">Tu proceso, con propósito</span><h1>Hola, Ana.</h1><p>Tu entrenadora: <strong>Eva</strong><span className="demo-pill">Caso de demostración</span></p></header>
+        <header className="client-greeting"><span className="eyebrow">Tu proceso, con propósito</span><h1>Hola, {clientProfile?.fullName || 'bienvenida'}.</h1><p>Tu entrenadora: <strong>{clientProfile?.trainerName || 'Pendiente de asignación'}</strong><span className="demo-pill">Caso de demostración</span></p></header>
         <section className="surface-card week-card" aria-labelledby="weekTitle">
-          <div className="card-heading"><h2 id="weekTitle">Semana de entrenamiento</h2><span>{approvedVersion} · {approvedDays.length} días</span></div>
+          <div className="card-heading"><h2 id="weekTitle">Semana de entrenamiento</h2><span>{hasApprovedPlan ? `${approvedVersion} · ${approvedDays.length} días` : 'Plan pendiente'}</span></div>
           <div className="week-strip" aria-label="Seleccionar día de la semana">
             {days.map(day => <button key={day.iso} type="button" className={`week-button ${day.selected ? 'is-selected' : ''} ${approvedDays.includes(day.iso) ? 'has-workout' : ''}`} aria-pressed={day.selected} onClick={() => chooseDate(day.date)}>
               <span>{day.short}</span><strong>{day.date.getDate()}</strong>{approvedDays.includes(day.iso) && <i aria-label="Día de entrenamiento" />}
@@ -152,7 +158,7 @@ export default function ClientExperience({ clientProfile = DEMO_CLIENT, approved
           <div className="today-card__meta"><span className="eyebrow">Lo que toca {selectedDay.isToday ? 'hoy' : selectedDay.name.toLocaleLowerCase('es')}</span><span>{niceDateLabel}</span></div>
           <span className={`status-chip ${isPending ? '' : isTrainingDay ? 'status-chip--training' : 'status-chip--rest'}`}>{workSummary.status}</span>
           <h2>{workSummary.title}</h2>
-          <p>{workSummary.description}</p>
+          <p>{assignedFocus && isTrainingDay ? `Enfoque: ${assignedFocus}. ` : ''}{workSummary.description}</p>
           <button className="text-link" type="button" onClick={() => setTab('training')}>Ver detalle del día <span aria-hidden="true">→</span></button>
         </section>
         <blockquote className="motivation-quote">“La constancia también es progreso.”</blockquote>
@@ -161,13 +167,13 @@ export default function ClientExperience({ clientProfile = DEMO_CLIENT, approved
       {tab === 'training' && <>
         <div className="view-title"><span className="eyebrow">{niceDateLabel}</span><h1>Entrenamiento</h1><p>La información corresponde al día seleccionado en el calendario.</p></div>
         <section className="surface-card selected-day-card" aria-live="polite">
-          <div className="card-heading"><h2>{isPending ? 'Rutina pendiente' : isTrainingDay && isDemoMonday ? 'Rutina de brazos · demo' : isTrainingDay ? 'Entrenamiento asignado' : 'Día de descanso'}</h2><span className="status-chip">{isTrainingDay ? `${currentRoutine?.response?.plan?.versionId?.replace('DEMO-', '') || approvedVersion} · aprobada` : isPending ? 'Pendiente' : 'Sin sesión'}</span></div>
-          <p>{isPending
+          <div className="card-heading"><h2>{isPending ? 'Rutina pendiente' : isTrainingDay && useDemoArmSession ? 'Rutina de brazos · demo' : isTrainingDay ? 'Entrenamiento asignado' : 'Día de descanso'}</h2><span className="status-chip">{isTrainingDay ? `${currentRoutine?.response?.plan?.versionId?.replace('DEMO-', '') || approvedVersion} · aprobada` : isPending ? 'Pendiente' : 'Sin sesión'}</span></div>
+          <p>{assignedFocus && isTrainingDay ? `Enfoque de la sesión: ${assignedFocus}. ` : ''}{isPending
             ? workSummary.description
-            : isTrainingDay && isDemoMonday
+            : isTrainingDay && useDemoArmSession
             ? SIMULATED_MONDAY_FOCUS.note
             : isTrainingDay
-              ? `La rutina aprobada ${currentRoutine?.response?.plan?.versionId?.replace('DEMO-', '') || approvedVersion} indica entrenamiento este día. Los ejercicios específicos están pendientes de registro.`
+              ? assignedExerciseCount ? `La rutina aprobada tiene ${assignedExerciseCount} ejercicios asignados para este día. Consulta su equipo y prescripción en la sesión.` : `La rutina aprobada ${currentRoutine?.response?.plan?.versionId?.replace('DEMO-', '') || approvedVersion} indica entrenamiento este día. Los ejercicios específicos están pendientes de registro.`
               : `Este día está marcado como descanso en la rutina aprobada ${currentRoutine?.response?.plan?.versionId?.replace('DEMO-', '') || approvedVersion}.`}</p>
         </section>
         {isPending ? <section className="surface-card rest-card"><h2>Plan pendiente de consulta</h2><p>No mostramos una prescripción sin confirmación del plan.</p></section> : isTrainingDay ? <>
@@ -191,7 +197,7 @@ export default function ClientExperience({ clientProfile = DEMO_CLIENT, approved
         <button className="profile-help-action" type="button" onClick={requestHelp}>Necesito ayuda</button>
         {helpConfirmation && <p className="profile-help-confirmation" role="status" aria-live="polite">{helpConfirmation}</p>}
         <section className="surface-card profile-card"><div className="avatar" aria-hidden="true">{clientProfile?.fullName?.trim()?.charAt(0) || '•'}</div><div><h2>{clientProfile?.fullName || 'Mi perfil'}</h2><p>{clientProfile?.isDemo ? 'Atleta · datos ficticios de demostración' : 'Atleta'}</p></div></section>
-        <section className="surface-card profile-info"><div><span>Entrenadora asignada</span><strong>{clientProfile?.trainerName || 'Pendiente de asignación'}</strong></div><div><span>Objetivo de entrenamiento</span><strong>{profileDetails?.goal || 'Pendiente de registro'}</strong></div><div><span>Tiempo entrenando</span><strong>{profileDetails?.trainingDuration || 'Pendiente de registro'}</strong></div><div><span>Rutina vigente</span><strong>{approvedVersion} · {approvedDays.length} días por semana</strong></div><div><span>Días de entrenamiento</span><strong>{approvedDays.map(day => WEEK[day - 1].name).join(' y ')}</strong></div></section>
+        <section className="surface-card profile-info"><div><span>Entrenadora asignada</span><strong>{clientProfile?.trainerName || 'Pendiente de asignación'}</strong></div><div><span>Objetivo de entrenamiento</span><strong>{profileDetails?.goal || 'Pendiente de registro'}</strong></div><div><span>Tiempo entrenando</span><strong>{profileDetails?.trainingDuration || 'Pendiente de registro'}</strong></div><div><span>Rutina vigente</span><strong>{hasApprovedPlan ? `${approvedVersion} · ${approvedDays.length} días por semana` : 'Pendiente de registro'}</strong></div><div><span>Días de entrenamiento</span><strong>{hasApprovedPlan ? approvedDays.map(day => WEEK[day - 1].name).join(' y ') : 'Pendiente de asignación'}</strong></div></section>
         <section className="surface-card profile-cycle" aria-labelledby="profileCycleTitle">
           <div className="profile-section-heading"><div><span className="eyebrow">Seguimiento</span><h2 id="profileCycleTitle">Progreso del ciclo</h2></div><span className="status-chip">{profileDetails?.cycleProgress || 'Pendiente de registro'}</span></div>
           <p>El avance se mostrará cuando tu entrenadora registre el ciclo y sus revisiones.</p>
@@ -219,7 +225,7 @@ export default function ClientExperience({ clientProfile = DEMO_CLIENT, approved
           <p className="profile-history-note">Historial de mediciones: pendiente de registro.</p>
         </section>
         <section className="surface-card week-card" aria-labelledby="profileWeekTitle">
-          <div className="card-heading"><h2 id="profileWeekTitle">Semana de entrenamiento</h2><span>{approvedVersion} · {approvedDays.length} días</span></div>
+          <div className="card-heading"><h2 id="profileWeekTitle">Semana de entrenamiento</h2><span>{hasApprovedPlan ? `${approvedVersion} · ${approvedDays.length} días` : 'Plan pendiente'}</span></div>
           <div className="week-strip" aria-label="Seleccionar día de la semana">
             {days.map(day => <button key={day.iso} type="button" className={`week-button ${day.selected ? 'is-selected' : ''} ${approvedDays.includes(day.iso) ? 'has-workout' : ''}`} aria-pressed={day.selected} onClick={() => chooseDate(day.date)}>
               <span>{day.short}</span><strong>{day.date.getDate()}</strong>{approvedDays.includes(day.iso) && <i aria-label="Día de entrenamiento" />}

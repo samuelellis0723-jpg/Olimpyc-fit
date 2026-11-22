@@ -3,11 +3,17 @@ import Brand from '../../components/Brand.jsx';
 import { DEMO_CLIENT, DEMO_WARNING } from '../../mocks/demoData.js';
 
 const STORAGE_KEY = 'olimpyc-fit:onboarding:DEMO-A1';
+const welcomeKey = clientId => clientId === DEMO_CLIENT.id ? STORAGE_KEY : `olimpyc-fit:onboarding:${clientId}`;
 
-export default function OnboardingFlow({ onAuthenticated }) {
-  const alreadyWelcomed = localStorage.getItem(STORAGE_KEY) === 'true';
-  const pendingSession = Boolean(localStorage.getItem('olimpyc-fit:demo-session') || sessionStorage.getItem('olimpyc-fit:demo-session'));
-  const [step, setStep] = useState(!alreadyWelcomed && pendingSession ? 'welcome' : 'login');
+export default function OnboardingFlow({ clients = [DEMO_CLIENT], onAuthenticated }) {
+  const pendingSession = localStorage.getItem('olimpyc-fit:demo-session') || sessionStorage.getItem('olimpyc-fit:demo-session');
+  let pendingClient = null;
+  try {
+    const pendingProfileId = pendingSession ? JSON.parse(pendingSession).profileId : null;
+    pendingClient = clients.find(client => client.id === pendingProfileId) || null;
+  } catch { pendingClient = null; }
+  const shouldResumeWelcome = pendingClient && localStorage.getItem(welcomeKey(pendingClient.id)) !== 'true';
+  const [step, setStep] = useState(shouldResumeWelcome ? 'welcome' : 'login');
   const [name, setName] = useState(DEMO_CLIENT.fullName);
   const [id, setId] = useState(DEMO_CLIENT.nationalId);
   const [remember, setRemember] = useState(false);
@@ -15,6 +21,7 @@ export default function OnboardingFlow({ onAuthenticated }) {
   const [role, setRole] = useState('client');
   const [trainerUsername, setTrainerUsername] = useState('');
   const [trainerPassword, setTrainerPassword] = useState('');
+  const [activeClient, setActiveClient] = useState(pendingClient || DEMO_CLIENT);
 
   function submitAccess(event) {
     event.preventDefault();
@@ -23,20 +30,24 @@ export default function OnboardingFlow({ onAuthenticated }) {
       setError('No se pudo validar el acceso. Este proyecto aún no tiene autenticación de entrenadores conectada; no se inició sesión.');
       return;
     }
-    if (name.trim().toLocaleLowerCase('es') !== DEMO_CLIENT.fullName.toLocaleLowerCase('es') || id.replace(/\D/g, '') !== DEMO_CLIENT.nationalId) {
-      setError('No coincide con el perfil ficticio de demostración.');
+    const normalizedName = name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('es');
+    const normalizedId = id.replace(/\D/g, '');
+    const matchedClient = clients.find(client => client.fullName.trim().replace(/\s+/g, ' ').toLocaleLowerCase('es') === normalizedName && client.nationalId === normalizedId);
+    if (!matchedClient) {
+      setError('No encontramos un registro que coincida con esos datos.');
       return;
     }
+    setActiveClient(matchedClient);
     setError('');
     const store = remember ? localStorage : sessionStorage;
-    store.setItem('olimpyc-fit:demo-session', JSON.stringify({ profileId: DEMO_CLIENT.id, remember }));
-    if (localStorage.getItem(STORAGE_KEY) === 'true') onAuthenticated(DEMO_CLIENT);
+    store.setItem('olimpyc-fit:demo-session', JSON.stringify({ profileId: matchedClient.id, remember }));
+    if (localStorage.getItem(welcomeKey(matchedClient.id)) === 'true') onAuthenticated(matchedClient);
     else setStep('welcome');
   }
 
   function finishGuide() {
-    localStorage.setItem(STORAGE_KEY, 'true');
-    onAuthenticated(DEMO_CLIENT);
+    localStorage.setItem(welcomeKey(activeClient.id), 'true');
+    onAuthenticated(activeClient);
   }
 
   return (
@@ -63,12 +74,12 @@ export default function OnboardingFlow({ onAuthenticated }) {
               <p className="demo-notice">Las credenciales no se guardan. El panel permanecerá cerrado hasta que el sistema pueda validar que la sesión pertenece a un entrenador.</p>
             </>}
             {error && <p className="form-error" role="alert">{error}</p>}
-            {role === 'client' && <p className="demo-notice">{DEMO_WARNING} Ana y Eva son perfiles ficticios.</p>}
+            {role === 'client' && <p className="demo-notice">{DEMO_WARNING} Los registros agregados por Eva son demostraciones locales.</p>}
             <button className="button button--dark" type="submit">{role === 'client' ? 'Continuar' : 'Iniciar sesión como entrenador'} <span aria-hidden="true">→</span></button>
           </form>
         </>}
         {step === 'welcome' && <section className="welcome-grid">
-          <div><p className="eyebrow">Qué bueno tenerte aquí</p><h1>Ana, bienvenida a una vida fit.</h1><p className="lead">Este espacio acompaña tu proceso personal. Puedes avanzar a tu ritmo y revisar lo que tu equipo haya registrado.</p><blockquote>“La constancia también es progreso.”</blockquote><button className="button button--dark" onClick={() => setStep('guide')}>Continuar <span aria-hidden="true">→</span></button></div>
+          <div><p className="eyebrow">Qué bueno tenerte aquí</p><h1>{activeClient.fullName}, bienvenida a una vida fit.</h1><p className="lead">Este espacio acompaña tu proceso personal. Puedes avanzar a tu ritmo y revisar lo que tu equipo haya registrado.</p><blockquote>“La constancia también es progreso.”</blockquote><button className="button button--dark" onClick={() => setStep('guide')}>Continuar <span aria-hidden="true">→</span></button></div>
           <img src="/authentic_professional_editorial_photography_in_a_modern_strength_training_gym..png" alt="Personas entrenando con pesas en un gimnasio" />
         </section>}
         {step === 'guide' && <section className="guide-content"><p className="eyebrow">Antes de comenzar</p><h1>Confirma tu recorrido.</h1><p className="lead">Revisa el plan aprobado, sigue las indicaciones disponibles y consulta únicamente el progreso registrado.</p><div className="guide-steps"><article><span>01</span><h2>Tu plan</h2><p>Consulta la rutina vigente que haya aprobado tu entrenadora.</p></article><article><span>02</span><h2>Tu entrenamiento</h2><p>Registra el avance de la sesión siguiendo la prescripción disponible.</p></article><article><span>03</span><h2>Tu progreso</h2><p>Revisa la información que se haya registrado para tu perfil.</p></article></div><button className="button button--dark" onClick={finishGuide}>Iniciar mi recorrido <span aria-hidden="true">→</span></button></section>}
