@@ -15,18 +15,29 @@ import {
 } from '../adapters/fuentesPlanificacionSupabase.js';
 import { crearRepositorioPlanificacionSupabase } from '../adapters/repositorioPlanificacionSupabase.js';
 
+function resolverProveedorAlArrancar() {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (apiKey && String(apiKey).trim()) {
+    return {
+      proveedor: crearProveedorDeepSeek({
+        apiKey: String(apiKey).trim(),
+        model: process.env.DEEPSEEK_MODEL,
+      }),
+      modeloProveedor: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+    };
+  }
+
+  return {
+    proveedor: crearProveedorSimulado(),
+    modeloProveedor: 'simulado',
+  };
+}
+
 export function montarPlanificacionApi(app, { limiteBody = '1mb' } = {}) {
   app.use(express.json({ limit: limiteBody }));
 
   const repo = crearRepositorioPlanificacionSupabase();
-
-  const usaDeepSeek = Boolean(process.env.DEEPSEEK_API_KEY);
-  const proveedor = usaDeepSeek
-    ? crearProveedorDeepSeek({
-        apiKey: process.env.DEEPSEEK_API_KEY,
-        model: process.env.DEEPSEEK_MODEL,
-      })
-    : crearProveedorSimulado();
+  const { proveedor, modeloProveedor } = resolverProveedorAlArrancar();
 
   const servicio = crearServicioPlanificacion({
     proveedor,
@@ -36,9 +47,7 @@ export function montarPlanificacionApi(app, { limiteBody = '1mb' } = {}) {
     tieneAsignacion,
     obtenerHistorialEjecutado,
     reloj: () => new Date().toISOString(),
-    modeloProveedor: usaDeepSeek
-      ? process.env.DEEPSEEK_MODEL || 'deepseek-chat'
-      : 'simulado',
+    modeloProveedor,
   });
 
   async function resolverActor(req) {
