@@ -119,7 +119,7 @@ export function crearServicioPlanificacion({ proveedor, repo, obtenerEvaluacion,
         const plan = crearPlan({ e: evaluacion, c: catalogo, propuesta: respuesta, contexto, actor, atletaId: solicitud.atletaId, origen: 'DeepSeek' });
         const guardado = await repo.crearBorrador({ gimnasioId: actor.gimnasioId, atletaId: solicitud.atletaId, plan });
         resultado = 'borrador'; return copiarPlan(guardado);
-      } catch (cause) { codigoError = cause.codigo; if (cause instanceof ErrorPlanificacion) throw cause; throw noDisponible(); }
+      } catch (cause) { codigoError = cause?.codigo; if (cause instanceof ErrorPlanificacion) throw cause; throw noDisponible(); }
       finally { informar({ operacion: 'generar', modeloProveedor, catalogoVersion: catalogo.catalogoVersion, versionesCriterios: [...new Set(catalogo.criterios.map((c) => c.version))], evaluacionId: evaluacion.evaluacionId, resultado, ...(codigoError ? { codigoError } : {}) }); }
     },
     async obtenerPlan(actor, { versionId }) { return obtenerPlanAsignado(actor, versionId); },
@@ -193,7 +193,7 @@ export function crearServicioPlanificacion({ proveedor, repo, obtenerEvaluacion,
         const borrador = { gimnasioId: actor.gimnasioId, atletaId: plan.atletaId, evaluacionId: plan.evaluacionId, origen: 'DeepSeek', estado: 'borrador', revision: 1, catalogoVersion: c.catalogoVersion, dias: diasNuevos, creadoEn: reloj(), versionBaseId: plan.versionId, motivo: normalizada.motivo, diferencias };
         const guardado = await repo.crearBorrador({ gimnasioId: actor.gimnasioId, atletaId: plan.atletaId, plan: borrador });
         resultado = 'borrador'; return { plan: copiarPlan(guardado), diferencias: clonar(diferencias) };
-      } catch (cause) { codigoError = cause.codigo; if (cause instanceof ErrorPlanificacion) throw cause; throw noDisponible(); }
+      } catch (cause) { codigoError = cause?.codigo; if (cause instanceof ErrorPlanificacion) throw cause; throw noDisponible(); }
       finally { informar({ operacion: 'reorganizar', modeloProveedor, catalogoVersion: c.catalogoVersion, versionesCriterios: [...new Set(c.criterios.map((cr) => cr.version))], evaluacionId: e.evaluacionId, versionBaseId: plan.versionId, resultado, ...(codigoError ? { codigoError } : {}) }); }
     },
     async obtenerRutina(actor, { fecha }) {

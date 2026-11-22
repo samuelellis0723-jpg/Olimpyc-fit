@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { ErrorPlanificacion } from "../dominio/errores.mjs";
 
 const copia = (valor) => valor === undefined ? undefined : structuredClone(valor);
@@ -21,7 +22,10 @@ function baseNoVigente(revisionActual) {
 /** Repositorio temporal para desarrollo. Todas las comparaciones y escrituras
  * ocurren en el mismo tramo síncrono, antes de devolver el resultado.
  */
-export function crearRepositorioEnMemoria() {
+export function crearRepositorioEnMemoria({ formatoVersionId = "secuencial" } = {}) {
+  if (!["secuencial", "uuid"].includes(formatoVersionId)) {
+    throw new TypeError("formatoVersionId debe ser 'secuencial' o 'uuid'.");
+  }
   const planesPorGimnasio = new Map();
   const contadoresPorGimnasio = new Map();
 
@@ -60,10 +64,15 @@ export function crearRepositorioEnMemoria() {
         if (!base || base.atletaId !== atletaId || base.estado !== "vigente") throw baseNoVigente(base?.revision);
       }
 
-      const siguiente = (contadoresPorGimnasio.get(gimnasioId) ?? 0) + 1;
-      const versionId = `V${siguiente}`;
+      let versionId;
+      if (formatoVersionId === "uuid") {
+        versionId = randomUUID();
+      } else {
+        const siguiente = (contadoresPorGimnasio.get(gimnasioId) ?? 0) + 1;
+        versionId = `V${siguiente}`;
+        contadoresPorGimnasio.set(gimnasioId, siguiente);
+      }
       const planes = planesDelGimnasio(gimnasioId);
-      contadoresPorGimnasio.set(gimnasioId, siguiente);
       const guardado = {
         ...entrada,
         versionId,

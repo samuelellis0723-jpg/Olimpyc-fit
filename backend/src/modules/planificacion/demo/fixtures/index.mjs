@@ -73,3 +73,152 @@ export const fixturesDemo = {
   actores: actoresDemo,
   historialEjecutado: historialEjecutadoEva,
 };
+
+// UUID v4 ficticios deterministas para demo local; no corresponden a cuentas ni tablas reales en Supabase.
+export const idsDemoUuid = Object.freeze({
+  gimnasioG1: '11111111-1111-4111-8111-111111111111',
+  gimnasioG2: '22222222-2222-4222-8222-222222222222',
+  entrenadoraEva: '11111111-1111-4111-8111-111111111101',
+  entrenadorAjeno: '11111111-1111-4111-8111-111111111102',
+  atletaEva: '11111111-1111-4111-8111-111111111103',
+  atletaOtroGimnasio: '22222222-2222-4222-8222-222222222204',
+  evaluacionEva: '11111111-1111-4111-8111-111111111201',
+  evaluacionEvaIncompleta: '11111111-1111-4111-8111-111111111202',
+  ejercicioE1: '11111111-1111-4111-8111-111111111301',
+  ejercicioE2: '11111111-1111-4111-8111-111111111302',
+  criterioCR1: '11111111-1111-4111-8111-111111111401',
+  criterioCR2: '11111111-1111-4111-8111-111111111402',
+  revisorDemo: '11111111-1111-4111-8111-111111111501',
+});
+
+export const evaluacionEvaUuid = {
+  ...structuredClone(evaluacionEva),
+  evaluacionId: idsDemoUuid.evaluacionEva,
+  gimnasioId: idsDemoUuid.gimnasioG1,
+  atletaId: idsDemoUuid.atletaEva,
+  autorId: idsDemoUuid.entrenadoraEva,
+};
+
+export const evaluacionEvaIncompletaUuid = {
+  ...structuredClone(evaluacionEvaUuid),
+  evaluacionId: idsDemoUuid.evaluacionEvaIncompleta,
+  objetivo: '',
+  nivel: undefined,
+  observacion: undefined,
+};
+
+export const catalogoDemoUuid = {
+  catalogoVersion: 'v1',
+  ejercicios: [
+    {
+      ejercicioId: idsDemoUuid.ejercicioE1,
+      nombre: 'Sentadilla a banco',
+      grupoMuscular: 'piernas',
+      estaciones: ['banco'],
+      restriccionesIncompatibles: [],
+      dosis: {
+        series: { min: 1, max: 4 },
+        objetivoPorSerie: { unidad: 'repeticiones', min: 6, max: 15 },
+        descansoSegundos: { min: 30, max: 120 },
+      },
+    },
+    {
+      ejercicioId: idsDemoUuid.ejercicioE2,
+      nombre: 'Press con mancuernas en banco',
+      grupoMuscular: 'pecho',
+      estaciones: ['banco', 'mancuernas'],
+      restriccionesIncompatibles: [],
+      dosis: {
+        series: { min: 1, max: 4 },
+        objetivoPorSerie: { unidad: 'repeticiones', min: 6, max: 15 },
+        descansoSegundos: { min: 30, max: 120 },
+      },
+    },
+  ],
+  criterios: [
+    {
+      criterioId: idsDemoUuid.criterioCR1,
+      ejercicioId: idsDemoUuid.ejercicioE1,
+      version: 'v1',
+      texto: 'Usar banco estable y rango cómodo.',
+      procedencia: 'Guía profesional interna de demostración',
+      estado: 'aprobado',
+      revisorId: idsDemoUuid.revisorDemo,
+      revisadoEn: '2026-11-20T12:00:00.000Z',
+    },
+    {
+      criterioId: idsDemoUuid.criterioCR2,
+      ejercicioId: idsDemoUuid.ejercicioE2,
+      version: 'v1',
+      texto: 'Mantener control del movimiento con mancuernas apropiadas.',
+      procedencia: 'Guía profesional interna de demostración',
+      estado: 'aprobado',
+      revisorId: idsDemoUuid.revisorDemo,
+      revisadoEn: '2026-11-20T12:00:00.000Z',
+    },
+  ],
+};
+
+export const actoresDemoUuid = {
+  entrenadoraEva: { usuarioId: idsDemoUuid.entrenadoraEva, gimnasioId: idsDemoUuid.gimnasioG1, rol: 'entrenador' },
+  entrenadorAjeno: { usuarioId: idsDemoUuid.entrenadorAjeno, gimnasioId: idsDemoUuid.gimnasioG1, rol: 'entrenador' },
+  atletaEva: { usuarioId: idsDemoUuid.atletaEva, gimnasioId: idsDemoUuid.gimnasioG1, rol: 'atleta' },
+  atletaOtroGimnasio: { usuarioId: idsDemoUuid.atletaOtroGimnasio, gimnasioId: idsDemoUuid.gimnasioG2, rol: 'atleta' },
+};
+
+export const historialEjecutadoEvaUuid = [
+  { fecha: '2026-11-16', estado: 'completa', diaSemana: 1, ejercicioIds: [idsDemoUuid.ejercicioE1] },
+];
+
+export const fixturesDemoUuid = {
+  ids: idsDemoUuid,
+  evaluacion: evaluacionEvaUuid,
+  evaluacionIncompleta: evaluacionEvaIncompletaUuid,
+  catalogo: catalogoDemoUuid,
+  actores: actoresDemoUuid,
+  historialEjecutado: historialEjecutadoEvaUuid,
+};
+
+const evaluacionesUuid = new Map([
+  [idsDemoUuid.evaluacionEva, evaluacionEvaUuid],
+  [idsDemoUuid.evaluacionEvaIncompleta, evaluacionEvaIncompletaUuid],
+]);
+
+export function crearAdaptadoresDemo({ modoIds = 'codigos' } = {}) {
+  if (!['codigos', 'uuid'].includes(modoIds)) {
+    throw new Error("modoIds debe ser 'codigos' o 'uuid'.");
+  }
+  if (modoIds === 'codigos') {
+    return {
+      actores: actoresDemo,
+      obtenerEvaluacion,
+      obtenerCatalogo,
+      tieneAsignacion,
+      obtenerHistorialEjecutado,
+    };
+  }
+  return {
+    actores: actoresDemoUuid,
+    async obtenerEvaluacion({ gimnasioId, atletaId, evaluacionId }) {
+      const evaluacion = evaluacionesUuid.get(evaluacionId);
+      if (!evaluacion || evaluacion.gimnasioId !== gimnasioId || evaluacion.atletaId !== atletaId) return undefined;
+      return structuredClone(evaluacion);
+    },
+    async obtenerCatalogo({ gimnasioId, catalogoVersion }) {
+      return gimnasioId === idsDemoUuid.gimnasioG1
+        && (catalogoVersion === undefined || catalogoVersion === catalogoDemoUuid.catalogoVersion)
+        ? structuredClone(catalogoDemoUuid)
+        : undefined;
+    },
+    async tieneAsignacion({ gimnasioId, entrenadorId, atletaId }) {
+      return gimnasioId === idsDemoUuid.gimnasioG1
+        && entrenadorId === idsDemoUuid.entrenadoraEva
+        && atletaId === idsDemoUuid.atletaEva;
+    },
+    async obtenerHistorialEjecutado({ gimnasioId, atletaId }) {
+      return gimnasioId === idsDemoUuid.gimnasioG1 && atletaId === idsDemoUuid.atletaEva
+        ? structuredClone(historialEjecutadoEvaUuid)
+        : [];
+    },
+  };
+}
