@@ -3,7 +3,7 @@ import Brand from '../../components/Brand.jsx';
 import './trainer.css';
 
 // Interfaz de acceso únicamente. La autenticación de entrenador aún no está integrada.
-export default function TrainerLogin({ demoAvailable = false, onOpenDemo, onBackToClient }) {
+export default function TrainerLogin({ demoAvailable = false, apiDemoAvailable = false, apiDemoMessage = '', onOpenDemo, onOpenApiDemo, onBackToClient }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -33,6 +33,11 @@ export default function TrainerLogin({ demoAvailable = false, onOpenDemo, onBack
           <p>Acceso local para revisar la interfaz. No valida credenciales ni conecta con el backend.</p>
           <button className="button button--outline" type="button" onClick={onOpenDemo}>Ver dashboard de entrenador (demo)</button>
         </div>}
+        {apiDemoAvailable && <div className="trainer-demo-access trainer-api-demo-access">
+          <p>Conecta al servidor UUID local con identidades ficticias de Eva. No es autenticación real y no funciona fuera de desarrollo en loopback.</p>
+          <button className="button button--outline" type="button" onClick={onOpenApiDemo}>Abrir planificación UUID (demo local)</button>
+        </div>}
+        {apiDemoMessage && <p className="trainer-access-message" role="status">{apiDemoMessage}</p>}
         <button className="trainer-back-link" type="button" onClick={onBackToClient}>Volver al acceso de cliente</button>
       </section>
     </main>

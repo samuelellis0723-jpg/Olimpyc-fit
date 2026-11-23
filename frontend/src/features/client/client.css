@@ -120,6 +120,13 @@
 .session-demo-heading h2 { margin: 0; font: 400 23px/1.1 var(--serif); }
 .session-demo-heading p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .session-prerequisite { margin: 7px 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.session-station-field { display: grid; gap: 6px; margin: 10px 0; color: var(--ink); font-size: 12px; font-weight: 700; }
+.session-station-field input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: 400 14px/1.4 var(--sans); }
+.session-station-field input:focus-visible { outline: 3px solid color-mix(in srgb, var(--terra) 65%, white); outline-offset: 2px; }
+.session-start-error { margin: 8px 0; padding: 10px 12px; border: 1px solid #e4b8ad; border-radius: 8px; color: #872b22; background: #fbf2ef; font-size: 12px; line-height: 1.5; }
+.session-series-value { display: grid; gap: 6px; margin: 8px 0; color: var(--ink); font-size: 12px; font-weight: 700; }
+.session-series-value input { width: min(100%, 220px); min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: 400 14px/1.4 var(--sans); }
+.session-series-value input:focus-visible { outline: 3px solid color-mix(in srgb, var(--terra) 65%, white); outline-offset: 2px; }
 .session-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .session-top h3 { margin: 3px 0 0; font: 400 23px var(--serif); }
 .timer { padding: 8px 10px; border-radius: 7px; background: #efede5; font-variant-numeric: tabular-nums; }

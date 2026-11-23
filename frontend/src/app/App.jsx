@@ -4,8 +4,12 @@ import OnboardingFlow from '../features/onboarding/OnboardingFlow.jsx';
 import ClientExperience from '../features/client/ClientExperience.jsx';
 import TrainerLogin from '../features/trainer/TrainerLogin.jsx';
 import TrainerPortal from '../features/trainer/TrainerPortal.jsx';
+import TrainerUuidDemo from '../features/trainer/TrainerUuidDemo.jsx';
+import TrainerLiveClients from '../features/trainer/TrainerLiveClients.jsx';
 import { DEMO_CLIENT, DEMO_REQUESTS } from '../mocks/demoData.js';
-import { attendanceService } from '../services/planService.js';
+import { attendanceService, planService } from '../services/planService.js';
+import { useAuth } from './providers/AuthProvider.jsx';
+import AdminDemo from '../features/admin/AdminDemo.jsx';
 
 function getStoredSession() {
   for (const raw of [localStorage.getItem('olimpyc-fit:demo-session'), sessionStorage.getItem('olimpyc-fit:demo-session')]) {
@@ -18,7 +22,7 @@ function getStoredSession() {
   return null;
 }
 
-export default function App() {
+function DemoApplication() {
   const [session, setSession] = useState(getStoredSession);
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const [clients, setClients] = useState([DEMO_CLIENT]);
@@ -47,6 +51,11 @@ export default function App() {
     window.history.pushState({}, '', path);
     setPathname(path);
   }
+
+  if (pathname === '/administracion/demo' && import.meta.env.DEV) {
+    return <AdminDemo onExit={() => navigate('/')} />;
+  }
+
   if (pathname === '/administracion' || pathname.startsWith('/administracion/')) {
     return <main className="onboarding-shell">
       <header className="app-header"><Brand compact /><span className="header-kicker">ADMINISTRACIÓN</span></header>
@@ -54,7 +63,7 @@ export default function App() {
         <span className="eyebrow">Acceso bloqueado</span>
         <h1 id="adminAccessTitle">El panel administrativo aún no está conectado.</h1>
         <p className="lead">No se puede verificar una sesión Supabase ni confirmar el rol administrador desde este frontend. Por seguridad, esta ruta no muestra datos administrativos.</p>
-        <p className="demo-notice">Integración pendiente: el backend debe implementar y documentar una sesión autenticada, una consulta de identidad y el rol administrador. El contrato disponible propone GET /api/v1/me, pero no está montado en el servidor compartido y el modelo documenta atleta y entrenador.</p>
+        <p className="demo-notice">Integración pendiente: la identidad se consulta mediante GET /api/v1/auth/me. El panel administrativo y sus rutas aún no están disponibles en el backend desplegado.</p>
         <a className="button button--dark" href="/">Ir al acceso principal</a>
       </section>
     </main>;
@@ -140,9 +149,15 @@ export default function App() {
     />;
     return <TrainerLogin onBackToClient={() => navigate('/')} />;
   }
+  if (pathname === '/entrenador/uuid-demo') {
+    if (planService.isUuidDemoAvailable()) return <TrainerUuidDemo onExit={() => navigate('/entrenador')} />;
+    return <TrainerLogin apiDemoMessage="La demo UUID está desactivada. Inicia Vite en desarrollo con VITE_API_MODE=uuid-demo, la base local y los tokens ficticios documentados." onBackToClient={() => navigate('/')} />;
+  }
   if (pathname === '/entrenador' || pathname.startsWith('/entrenador/')) return <TrainerLogin
     demoAvailable={import.meta.env.DEV}
+    apiDemoAvailable={planService.isUuidDemoAvailable()}
     onOpenDemo={() => navigate('/entrenador/demo')}
+    onOpenApiDemo={() => navigate('/entrenador/uuid-demo')}
     onBackToClient={() => navigate('/')}
   />;
   if (!session) return <OnboardingFlow
@@ -196,4 +211,87 @@ export default function App() {
     {notice && <div className="global-notice" role="status">{notice}<button aria-label="Cerrar aviso" onClick={() => setNotice('')}>×</button></div>}
     <ClientExperience clientProfile={activeClient} hasApprovedPlan={activeClientPlan.hasPlan} approvedDays={activeClientPlan.approvedDays} approvedVersion={activeClientPlan.approvedVersion} approvedRoutineDays={activeClientPlan.approvedRoutineDays} setNotice={setNotice} onRequestHelp={requestClientHelp} />
   </div>;
+}
+
+function AccessStatus({ title, description, error, onRetry, onSignOut, onBack }) {
+  return <main className="onboarding-shell">
+    <header className="app-header"><Brand compact /><span className="header-kicker">OLIMpyC FIT · ACCESO</span></header>
+    <section className="onboarding-content" aria-live="polite">
+      <span className="eyebrow">{title}</span>
+      <h1>{description}</h1>
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <div className="form-actions">
+        {onRetry && <button className="button button--dark" type="button" onClick={onRetry}>Reintentar verificación</button>}
+        {onSignOut && <button className="button button--outline" type="button" onClick={onSignOut}>Cerrar sesión</button>}
+        {onBack && <a className="button button--outline" href="/">Volver al acceso</a>}
+      </div>
+    </section>
+  </main>;
+}
+
+function SupabaseApplication({ auth }) {
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+  useEffect(() => {
+    const syncPath = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', syncPath);
+    return () => window.removeEventListener('popstate', syncPath);
+  }, []);
+
+  function navigate(path) {
+    window.history.pushState({}, '', path);
+    setPathname(path);
+  }
+
+  useEffect(() => {
+    if (auth.status !== 'authenticated') return;
+    const target = auth.role === 'atleta' ? '/' : auth.role === 'entrenador' ? '/entrenador' : '/administracion';
+    if (pathname === '/' || pathname === '/entrenador' || pathname === '/administracion') {
+      if (pathname !== target) navigate(target);
+    }
+  }, [auth.status, auth.role, pathname]);
+
+  if (pathname === '/administracion/demo' && import.meta.env.DEV) {
+    return <AdminDemo onExit={() => navigate('/')} />;
+  }
+
+  if (auth.status === 'loading' || auth.status === 'authenticating' || auth.status === 'verifying') {
+    return <AccessStatus title="Verificando sesión" description="Espera mientras confirmamos tu identidad y tu rol con el servidor." />;
+  }
+
+  if (auth.status === 'identity-error' || auth.status === 'unknown-role') {
+    return <AccessStatus title="No se pudo verificar el acceso" description="No abrimos una interfaz protegida." error={auth.error} onRetry={() => auth.retryIdentity()} onSignOut={() => auth.signOut()} />;
+  }
+
+  if (auth.status !== 'authenticated') {
+    return <OnboardingFlow authMode="supabase" onSupabaseLogin={auth.signIn} />;
+  }
+
+  if (auth.role === 'atleta') {
+    return <div className="app-shell app-shell--mobile">
+      <header className="app-header app-header--signed-in"><Brand compact /><button className="signout-button" type="button" onClick={() => auth.signOut()}>Salir</button></header>
+      <ClientExperience clientProfile={{ isDemo: false }} hasApprovedPlan={false} approvedDays={[]} approvedVersion="Pendiente" setNotice={() => {}} onRequestHelp={() => null} />
+    </div>;
+  }
+
+  if (auth.role === 'entrenador') {
+    return <TrainerLiveClients onSignOut={() => auth.signOut()} />;
+  }
+
+  if (auth.role === 'administrador') {
+    return <AccessStatus title="Pendiente de integración administrativa" description="El servidor confirmó el rol administrador. Las rutas administrativas todavía no están disponibles en el backend desplegado, así que no se muestran datos ni acciones del panel." onSignOut={() => auth.signOut()} />;
+  }
+
+  return <AccessStatus title="Acceso no disponible" description="El rol no permite abrir una interfaz en esta aplicación." onSignOut={() => auth.signOut()} />;
+}
+
+export default function App() {
+  const auth = useAuth();
+  if (auth.incomplete || auth.invalidUrl) {
+    return <AccessStatus title={auth.invalidUrl ? 'URL de Supabase inválida' : 'Configuración incompleta'} description={auth.invalidUrl ? 'Revisa VITE_SUPABASE_URL. No cambiaremos al modo demo mientras la configuración real sea inválida.' : 'Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY juntas. No cambiaremos al modo demo mientras falte una de ellas.'} />;
+  }
+  if (auth.configured && planService.getApiMode() === 'uuid-demo') {
+    return <AccessStatus title="Configuración incompatible" description="Supabase Auth y la demo UUID deben ejecutarse por separado. Quita VITE_API_MODE=uuid-demo para usar la sesión real; no se enviarán tokens ficticios a esta sesión." />;
+  }
+  if (auth.configured) return <SupabaseApplication auth={auth} />;
+  return <DemoApplication />;
 }
