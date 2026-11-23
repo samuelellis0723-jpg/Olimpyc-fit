@@ -1,0 +1,45 @@
+import { useState } from 'react';
+import Brand from '../../components/Brand.jsx';
+import './trainer.css';
+
+// Interfaz de acceso únicamente. La autenticación de entrenador aún no está integrada.
+export default function TrainerLogin({ demoAvailable = false, apiDemoAvailable = false, apiDemoMessage = '', onOpenDemo, onOpenApiDemo, onBackToClient }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+
+  function submitAccess(event) {
+    event.preventDefault();
+    setPassword('');
+    setMessage('No se pudo validar el acceso. Este proyecto aún no tiene autenticación de entrenadores conectada; no se inició sesión.');
+  }
+
+  return <div className="trainer-access-shell">
+    <header className="trainer-access-header"><Brand compact /><span>ACCESO DE ENTRENADOR</span></header>
+    <main className="trainer-access-content">
+      <section className="trainer-login-card surface-card">
+        <span className="eyebrow">Portal profesional</span>
+        <h1>Acceso de entrenador</h1>
+        <p>Ingresa con las credenciales asignadas a tu rol.</p>
+        <form onSubmit={submitAccess}>
+          <label htmlFor="trainerUsername">Usuario</label>
+          <input id="trainerUsername" name="username" autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} required />
+          <label htmlFor="trainerPassword">Contraseña</label>
+          <input id="trainerPassword" name="password" type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} required />
+          {message && <p className="trainer-access-message" role="status">{message}</p>}
+          <button className="button button--dark" type="submit">Continuar</button>
+        </form>
+        {demoAvailable && <div className="trainer-demo-access">
+          <p>Acceso local para revisar la interfaz. No valida credenciales ni conecta con el backend.</p>
+          <button className="button button--outline" type="button" onClick={onOpenDemo}>Ver dashboard de entrenador (demo)</button>
+        </div>}
+        {apiDemoAvailable && <div className="trainer-demo-access trainer-api-demo-access">
+          <p>Conecta al servidor UUID local con identidades ficticias de Eva. No es autenticación real y no funciona fuera de desarrollo en loopback.</p>
+          <button className="button button--outline" type="button" onClick={onOpenApiDemo}>Abrir planificación UUID (demo local)</button>
+        </div>}
+        {apiDemoMessage && <p className="trainer-access-message" role="status">{apiDemoMessage}</p>}
+        <button className="trainer-back-link" type="button" onClick={onBackToClient}>Volver al acceso de cliente</button>
+      </section>
+    </main>
+  </div>;
+}

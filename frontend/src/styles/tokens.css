@@ -1,0 +1,15 @@
+:root {
+  --paper: #f5f3ed;
+  --surface: #fbfaf6;
+  --ink: #252520;
+  --muted: #69685e;
+  --line: #deddd3;
+  --terra: #a52d23;
+  --terra-soft: #fbf2f0;
+  --olive: #45624a;
+  --serif: Georgia, 'Times New Roman', serif;
+  --sans: Arial, Helvetica, sans-serif;
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--paper);
+}
