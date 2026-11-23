@@ -8,6 +8,8 @@
   },
   "scripts": {
     "start": "node --env-file-if-exists=.env demo/servidor.mjs",
+    "start:uuid": "PLANIFICACION_IDS=uuid PLANIFICACION_PROVEEDOR=simulado node demo/servidor.mjs",
+    "demo:uuid": "node demo/flujo-uuid.mjs",
     "test": "node --test"
   },
   "dependencies": {

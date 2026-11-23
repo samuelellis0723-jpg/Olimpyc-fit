@@ -124,3 +124,23 @@ test("carreras CAS y aprobación tienen un único ganador; argumentos y resultad
   lectura.aprobacion.aprobadorId = "intruso";
   assert.notEqual(repo.obtenerVigente({ gimnasioId: "G1", atletaId: "A1" }).aprobacion.aprobadorId, "intruso");
 });
+
+test("soporta formatoVersionId uuid y rechaza formatos inválidos", () => {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  assert.throws(() => crearRepositorioEnMemoria({ formatoVersionId: "otro" }), TypeError);
+
+  const repo = crearRepositorioEnMemoria({ formatoVersionId: "uuid" });
+  const v1 = repo.crearBorrador({ gimnasioId: "G1", atletaId: "A1", plan: plan() });
+  assert.match(v1.versionId, uuid);
+  repo.aprobar({ gimnasioId: "G1", versionId: v1.versionId, revisionEsperada: 1, aprobadorId: "T1", fecha: "2026-11-21T13:00:00.000Z" });
+
+  const v2 = repo.crearBorrador({ gimnasioId: "G1", atletaId: "A1", plan: plan({ versionBaseId: v1.versionId }) });
+  assert.match(v2.versionId, uuid);
+  assert.notEqual(v2.versionId, v1.versionId);
+  assert.equal(v2.versionBaseId, v1.versionId);
+
+  const aprobada2 = repo.aprobar({ gimnasioId: "G1", versionId: v2.versionId, revisionEsperada: 1, aprobadorId: "T1", fecha: "2026-11-22T13:00:00.000Z" });
+  assert.equal(aprobada2.plan.estado, "vigente");
+  assert.equal(aprobada2.anterior.versionId, v1.versionId);
+  assert.equal(aprobada2.anterior.estado, "historica");
+});

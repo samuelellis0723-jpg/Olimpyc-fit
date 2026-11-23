@@ -4,6 +4,7 @@ import {
   actoresDemo, catalogoDemo, evaluacionEva, evaluacionEvaIncompleta,
   fixturesDemo, historialEjecutadoEva, obtenerCatalogo, obtenerEvaluacion,
   obtenerHistorialEjecutado, tieneAsignacion,
+  idsDemoUuid, catalogoDemoUuid, evaluacionEvaUuid, historialEjecutadoEvaUuid, crearAdaptadoresDemo,
 } from '../../demo/fixtures/index.mjs';
 import { crearProveedorSimulado } from '../../demo/proveedor-simulado.mjs';
 import { ErrorPlanificacion } from '../../dominio/errores.mjs';
@@ -102,4 +103,61 @@ test('aplicación de dominio debe rechazar propuesta simulada con ejercicio o cr
   } });
   const propuesta = await proveedor.generar(ctx, {});
   assert.throws(() => validarBorrador(propuesta, ctx), ErrorPlanificacion);
+});
+
+test('proveedor simulado y adaptadores soportan catálogo y fixtures con UUID v4', async () => {
+  const adaptadores = crearAdaptadoresDemo({ modoIds: 'uuid' });
+  const ev = await adaptadores.obtenerEvaluacion({
+    gimnasioId: idsDemoUuid.gimnasioG1,
+    atletaId: idsDemoUuid.atletaEva,
+    evaluacionId: idsDemoUuid.evaluacionEva,
+  });
+  const cat = await adaptadores.obtenerCatalogo({ gimnasioId: idsDemoUuid.gimnasioG1 });
+  assert.equal(ev.evaluacionId, evaluacionEvaUuid.evaluacionId);
+  assert.equal(cat.catalogoVersion, 'v1');
+  assert.equal(await adaptadores.tieneAsignacion({
+    gimnasioId: idsDemoUuid.gimnasioG1,
+    entrenadorId: idsDemoUuid.entrenadoraEva,
+    atletaId: idsDemoUuid.atletaEva,
+  }), true);
+
+  const ctxUuid = {
+    perfil: {
+      referenciaAtleta: 'DEMO-UUID-ATLETA',
+      fecha: ev.fecha,
+      modalidad: ev.modalidad,
+      objetivo: ev.objetivo,
+      diasDisponibles: [...ev.diasDisponibles],
+      nivel: ev.nivel,
+      observacion: ev.observacion,
+      restricciones: [...ev.restricciones],
+      mediciones: [],
+      publicaciones: structuredClone(ev.publicaciones),
+    },
+    catalogo: cat,
+    historialEjecutado: structuredClone(historialEjecutadoEvaUuid),
+  };
+
+  const proveedor = crearProveedorSimulado();
+  const propuestaV1 = await proveedor.generar(ctxUuid, {});
+  const validadaV1 = validarBorrador(propuestaV1, ctxUuid);
+  assert.equal(validadaV1.dias[0].items[0].ejercicioId, idsDemoUuid.ejercicioE1);
+  assert.equal(validadaV1.dias[0].items[1].ejercicioId, idsDemoUuid.ejercicioE2);
+
+  const ctxReorg = {
+    ...ctxUuid,
+    perfil: { ...ctxUuid.perfil, diasDisponibles: [1, 4, 6] },
+    versionBase: {
+      versionId: '00000000-0000-4000-8000-000000000099',
+      dias: validadaV1.dias.map((d, di) => ({
+        diaId: `00000000-0000-4000-8000-00000000010${di + 1}`,
+        diaSemana: d.diaSemana,
+        items: d.items.map((it, ii) => ({ ...it, itemId: `00000000-0000-4000-8000-0000000002${di}${ii}` })),
+      })),
+    },
+  };
+  const propuestaV2 = await proveedor.reorganizar(ctxReorg, { motivo: 'Regreso', disponibilidad: [1, 4, 6], ausencia: true });
+  const validadaV2 = validarBorrador(propuestaV2, ctxReorg);
+  assert.deepEqual(validadaV2.dias.map((d) => d.diaSemana), [1, 4, 6]);
+  assert.equal(validadaV2.dias[2].items[0].ejercicioId, idsDemoUuid.ejercicioE2);
 });

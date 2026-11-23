@@ -11,6 +11,13 @@ npm --prefix backend/src/modules/planificacion ci
 npm --prefix backend/src/modules/planificacion start
 ```
 
+Para probar localmente con UUID ficticios (compatibles en forma con el flujo integrado de frontend) y CORS loopback habilitado:
+
+```sh
+npm --prefix backend/src/modules/planificacion run start:uuid
+npm --prefix backend/src/modules/planificacion run demo:uuid
+```
+
 O desde este directorio:
 
 ```sh
@@ -18,7 +25,7 @@ npm ci
 npm start
 ```
 
-El servidor escucha en `127.0.0.1`. `PORT=0` elige un puerto efímero. Por defecto usa fixtures ficticios y proveedor simulado; `X-Planificacion-Demo` identifica ese modo. La identidad también es ficticia (`X-Demo-Actor` o bearer local) y el repositorio vive solo en memoria.
+El servidor escucha en `127.0.0.1`. `PORT=0` elige un puerto efímero. Por defecto usa fixtures ficticios y proveedor simulado; `X-Planificacion-Demo` identifica ese modo (añade `; ids-uuid` cuando `PLANIFICACION_IDS=uuid`). La identidad también es ficticia (`X-Demo-Actor` o bearer local) y el repositorio vive solo en memoria.
 
 Actores aceptados: `entrenadoraEva`, `entrenadorAjeno`, `atletaEva` y `atletaOtroGimnasio`. Por ejemplo, `X-Demo-Actor: entrenadoraEva` o `Authorization: Bearer demo-entrenadora-eva`; los bearer disponibles son `demo-entrenadora-eva`, `demo-entrenador-ajeno`, `demo-atleta-eva` y `demo-atleta-otro-gimnasio`. Son credenciales ficticias de demo local, no sirven para producción.
 
