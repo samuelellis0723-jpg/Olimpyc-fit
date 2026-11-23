@@ -4,6 +4,7 @@ import { crearServicioPlanificacion } from '../modules/planificacion/aplicacion/
 import { crearProveedorDeepSeek } from '../modules/planificacion/proveedores/crearProveedorDeepSeek.mjs';
 import { crearProveedorSimulado } from '../modules/planificacion/demo/proveedor-simulado.mjs';
 import { ErrorPlanificacion } from '../modules/planificacion/dominio/errores.mjs';
+import { crearRouterOperacion } from './crearRouterOperacion.js';
 import {
   resolverActorDesdeToken,
   tieneAsignacion,
@@ -68,6 +69,7 @@ export function montarPlanificacionApi(app, { limiteBody = '1mb' } = {}) {
 
   const router = crearRouterPlanificacion({ servicio, resolverActor });
   app.use('/api/v1', router);
+  app.use('/api/v1', crearRouterOperacion());
 
   app.use((err, _req, res, _next) => {
     const statusPermitidos = [401, 403, 404, 409, 422, 503];
