@@ -1,4 +1,4 @@
-﻿import { supabaseAdmin } from '../db/supabase.js';
+import { supabaseAdmin } from '../db/supabase.js';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -13,11 +13,11 @@ function normalizarDiaIso(valor) {
     lunes: 1,
     martes: 2,
     miercoles: 3,
-    miÃ©rcoles: 3,
+    'miércoles': 3,
     jueves: 4,
     viernes: 5,
     sabado: 6,
-    sÃ¡bado: 6,
+    'sábado': 6,
     domingo: 7,
   };
   const clave = String(valor ?? '').trim().toLowerCase();
