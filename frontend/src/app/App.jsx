@@ -47,6 +47,18 @@ export default function App() {
     window.history.pushState({}, '', path);
     setPathname(path);
   }
+  if (pathname === '/administracion' || pathname.startsWith('/administracion/')) {
+    return <main className="onboarding-shell">
+      <header className="app-header"><Brand compact /><span className="header-kicker">ADMINISTRACIÓN</span></header>
+      <section className="onboarding-content" aria-labelledby="adminAccessTitle">
+        <span className="eyebrow">Acceso bloqueado</span>
+        <h1 id="adminAccessTitle">El panel administrativo aún no está conectado.</h1>
+        <p className="lead">No se puede verificar una sesión Supabase ni confirmar el rol administrador desde este frontend. Por seguridad, esta ruta no muestra datos administrativos.</p>
+        <p className="demo-notice">Integración pendiente: el backend debe implementar y documentar una sesión autenticada, una consulta de identidad y el rol administrador. El contrato disponible propone GET /api/v1/me, pero no está montado en el servidor compartido y el modelo documenta atleta y entrenador.</p>
+        <a className="button button--dark" href="/">Ir al acceso principal</a>
+      </section>
+    </main>;
+  }
 
   function addDemoClient({ fullName, nationalId }) {
     const normalizedId = nationalId.replace(/\D/g, '');
