@@ -21,3 +21,160 @@
 3. En cada llamada al backend (`/api/v1/...`), el frontend envía la cabecera:
    ```http
    Authorization: Bearer <session.access_token>
+
+{
+  "usuarioId": "uuid-miembro",
+  "gimnasioId": "uuid-gimnasio",
+  "rol": "entrenador",
+  "nombre": "Eva",
+  "aliasVisible": "Eva"
+}
+
+{
+  "clientes": [
+    {
+      "asignacionId": "uuid-asignacion",
+      "fechaInicio": "2026-11-01T00:00:00.000Z",
+      "atletaId": "uuid-atleta",
+      "nombre": "Ana",
+      "aliasVisible": "Ana"
+    }
+  ]
+}
+
+{
+  "evaluaciones": [
+    {
+      "evaluacionId": "uuid-evaluacion",
+      "codigoRef": null,
+      "atletaId": "uuid-atleta",
+      "autorId": "uuid-entrenador",
+      "fecha": "2026-11-22T18:00:00.000Z",
+      "modalidad": "presencial",
+      "objetivo": "Fuerza base y estabilidad",
+      "disponibilidadSemanal": 4,
+      "nivelObservado": "intermedio",
+      "estadoNivel": "observado",
+      "restricciones": null,
+      "notas": "Buena técnica inicial",
+      "proximaRevision": "2026-12-06",
+      "observacionesPrivadas": "Nota interna solo visible para entrenador",
+      "mediciones": [
+        {
+          "medicionId": "uuid-medicion",
+          "evaluacionId": "uuid-evaluacion",
+          "variable": "peso_corporal",
+          "origen": "observado",
+          "fecha": "2026-11-22T18:00:00.000Z",
+          "estado": "medido",
+          "valor": 62.5,
+          "unidad": "kg",
+          "fuente": "balanza_gimnasio"
+        }
+      ]
+    }
+  ]
+}
+
+{
+  "modalidad": "presencial",
+  "objetivo": "Fuerza base y estabilidad",
+  "disponibilidadSemanal": 4,
+  "nivelObservado": "intermedio",
+  "estadoNivel": "observado",
+  "restricciones": null,
+  "observacionesPrivadas": "Nota interna",
+  "notas": "Evaluación inicial",
+  "proximaRevision": "2026-12-06",
+  "mediciones": [
+    {
+      "variable": "peso_corporal",
+      "origen": "observado",
+      "estado": "medido",
+      "valor": 62.5,
+      "unidad": "kg",
+      "fuente": "balanza"
+    }
+  ]
+}
+
+{
+  "mediciones": [
+    {
+      "variable": "sentadilla_estimada",
+      "origen": "observado",
+      "estado": "medido",
+      "valor": 70,
+      "unidad": "kg",
+      "fuente": "observacion_coach"
+    }
+  ]
+}
+
+{
+  "versionId": "uuid-version-plan",
+  "diaId": "uuid-dia-plan",
+  "itemActivoId": "uuid-item-plan",
+  "estacionActual": "rack-1"
+}
+
+{
+  "sesiones": [
+    {
+      "sesionId": "uuid-sesion",
+      "codigoRef": null,
+      "atletaId": "uuid-atleta",
+      "versionId": "uuid-version-plan",
+      "diaId": "uuid-dia-plan",
+      "inicioUtc": "2026-11-22T18:30:00.000Z",
+      "finUtc": null,
+      "estado": "activa",
+      "itemActivoId": "uuid-item-plan",
+      "estacionActual": "rack-1",
+      "series": []
+    }
+  ]
+}
+
+{
+  "itemActivoId": "uuid-item-plan",
+  "estacionActual": "rack-1",
+  "estado": "activa",
+  "serie": {
+    "itemId": "uuid-item-plan",
+    "numeroSerie": 1,
+    "repeticiones": 10,
+    "segundosRealizados": null
+  }
+}
+
+{
+  "sesionId": "uuid-sesion",
+  "ejercicioCapturado": "Sentadilla trasera",
+  "estacionCapturada": "rack-1"
+}
+
+{
+  "asistencias": [
+    {
+      "asistenciaId": "uuid-asistencia",
+      "codigoRef": null,
+      "sesionId": "uuid-sesion",
+      "atletaId": "uuid-atleta",
+      "atletaNombre": "Ana",
+      "atletaAlias": "Ana",
+      "entrenadorId": "uuid-entrenador",
+      "ordenTurno": 1,
+      "horaRecibidaUtc": "2026-11-22T18:35:00.000Z",
+      "estado": "pendiente",
+      "ejercicioCapturado": "Sentadilla trasera",
+      "estacionCapturada": "rack-1",
+      "horaAtencionUtc": null
+    }
+  ]
+}
+
+{
+  "estado": "atendida"
+}
+
