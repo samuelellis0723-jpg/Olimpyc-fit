@@ -1,26 +1,23 @@
 # Contratos de Integración Backend — Olimpyc Fit (`/api/v1`)
 
-## 1. Autenticación, Roles y Reglas de Seguridad
-- **Mecanismo de sesión:** Cabecera `Authorization: Bearer <access_token>` (token JWT de sesión emitido por Supabase Auth). No se almacenan ni devuelven contraseñas en texto plano ni se usan identidades ficticias en producción.
-- **Resolución de actor en servidor:** Cada petición protegida valida el token en el servidor y resuelve `usuarioId`, `gimnasioId` y `rol` (`"entrenador"` o `"atleta"`) desde `public.miembros`.
-- **Autorización por rol y asignación activa:**
-  - La validación del frontend es solo visual; el backend valida rol y asignación en cada petición.
-  - Un atleta (`rol: "atleta"`, ej. **Ana**) solo puede operar sobre sus propios recursos y **nunca** puede acceder a rutas exclusivas de entrenador (`403 SIN_PERMISO`), aunque conozca la URL.
-  - Un entrenador (`rol: "entrenador"`, ej. **Eva**) solo puede leer/modificar datos de atletas con asignación activa (`public.asignaciones` con `entrenador_id`, `atleta_id` y `fecha_fin IS NULL` dentro del mismo `gimnasio_id`). Si no existe asignación activa, responde `403 SIN_PERMISO`.
-- **Variables de entorno requeridas (sin secretos en código/repo):** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+## 1. Configuración Local y Sesión Supabase (sin secretos)
 
----
+### Variables de entorno locales
+* **Backend (`backend/.env`):**
+  * `PORT=3000` (opcional; arranque con `npm start` desde `backend/`).
+  * `SUPABASE_URL=<url_del_proyecto_supabase>`
+  * `SUPABASE_ANON_KEY=<anon_key_publica>`
+  * `SUPABASE_SERVICE_ROLE_KEY=<service_role_key_solo_servidor>`
+  * `DEEPSEEK_API_KEY=<api_key_opcional>` (si no se define, arranca con proveedor simulado por defecto).
+* **Frontend (`frontend/.env`):**
+  * `VITE_API_URL=http://localhost:3000/api/v1`
+  * `VITE_SUPABASE_URL=<url_del_proyecto_supabase>`
+  * `VITE_SUPABASE_ANON_KEY=<anon_key_publica>`
+  *(Nunca exponer `SUPABASE_SERVICE_ROLE_KEY` en el frontend ni subir archivos `.env` al repositorio).*
 
-## 2. Identidad y Clientes Asignados
-
-### `GET /api/v1/auth/me`
-- **Acceso:** `entrenador` o `atleta` autenticado.
-- **Respuesta `200 OK`:**
-```json
-{
-  "usuarioId": "uuid-miembro",
-  "gimnasioId": "uuid-gimnasio",
-  "rol": "entrenador",
-  "nombre": "Eva",
-  "aliasVisible": "Eva"
-}
+### Cómo obtiene el frontend la sesión y el `access_token`
+1. El frontend mantiene intacto su flujo actual de inicio de sesión.
+2. Cuando un usuario (entrenador o atleta) inicia sesión con Supabase Auth (`supabase.auth.signInWithPassword({ email, password })`) o ya tiene sesión activa (`const { data: { session } } = await supabase.auth.getSession()`), obtiene `session.access_token` (JWT).
+3. En cada llamada al backend (`/api/v1/...`), el frontend envía la cabecera:
+   ```http
+   Authorization: Bearer <session.access_token>
